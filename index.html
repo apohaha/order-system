@@ -91,10 +91,13 @@ body {
 .group {
   background: var(--grouped);
   border-radius: var(--radius);
-  overflow: hidden;
   margin-bottom: 16px;
   box-shadow: 0 1px 0 rgba(0,0,0,0.08);
+  overflow: visible;
 }
+.group > *:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+.group > *:last-child  { border-radius: 0 0 var(--radius) var(--radius); }
+.group > *:only-child  { border-radius: var(--radius); }
 .group-row {
   display: flex; align-items: center;
   padding: 13px 16px;
@@ -238,7 +241,7 @@ body {
 /* ── Table (orders list) ── */
 .order-card {
   background: var(--grouped); border-radius: var(--radius);
-  margin-bottom: 10px; overflow: hidden;
+  margin-bottom: 10px;
   box-shadow: 0 1px 0 rgba(0,0,0,0.06);
 }
 .order-card-head {
@@ -473,6 +476,20 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
     <!-- tab: merge -->
     <div id="mpanel-merge" class="opanel" style="display:block">
     <div class="section">
+
+      <!-- Sync my orders -->
+      <div class="group" style="padding:14px 16px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div>
+            <div style="font-weight:600;font-size:15px">同步入單資料</div>
+            <div style="font-size:13px;color:var(--text3);margin-top:2px" id="sync-status">將我的訂單整合進合併清單</div>
+          </div>
+          <button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="syncMyOrders()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            同步
+          </button>
+        </div>
+      </div>
       <!-- Import card -->
       <div class="section-title">加入夥伴資料</div>
       <div class="group" style="padding:14px 16px">
@@ -548,23 +565,40 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
       </div>
 
       <!-- Products -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-left:4px">
-        <div class="section-title" style="margin-bottom:0">商品清單</div>
-        <button class="nav-action" style="font-size:14px" onclick="openAddProduct()">＋ 新增</button>
+      <div class="group" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer" onclick="toggleSection('prod')">
+          <span style="font-weight:600;font-size:15px">商品清單</span>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="display:flex;gap:8px" onclick="event.stopPropagation()">
+              <button class="nav-action" style="font-size:14px" onclick="showListCopyModal('prod')">匯出</button>
+              <button class="nav-action" style="font-size:14px" onclick="openAddProduct()">＋ 新增</button>
+            </div>
+            <span id="prod-chevron" style="font-size:12px;color:var(--text3);transition:transform 0.2s">▼</span>
+          </div>
+        </div>
+        <div id="prod-section" style="display:none;border-top:0.5px solid var(--border)">
+          <div id="prod-list"></div>
+        </div>
       </div>
-      <div class="group" id="prod-list"></div>
 
       <!-- Customers -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:24px;margin-bottom:8px;padding-left:4px">
-        <div class="section-title" style="margin-bottom:0">客戶名單</div>
-        <button class="nav-action" style="font-size:14px" onclick="openAddCustomer()">＋ 新增</button>
+      <div class="group" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer" onclick="toggleSection('cust')">
+          <span style="font-weight:600;font-size:15px">客戶名單</span>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="display:flex;gap:8px" onclick="event.stopPropagation()">
+              <button class="nav-action" style="font-size:14px" onclick="showListCopyModal('cust')">匯出</button>
+              <button class="nav-action" style="font-size:14px" onclick="openAddCustomer()">＋ 新增</button>
+              <button class="nav-action" style="font-size:14px" onclick="document.getElementById('csv-upload').click()">CSV</button>
+              <input type="file" id="csv-upload" accept=".csv" style="display:none" onchange="handleCSV(event)" />
+            </div>
+            <span id="cust-chevron" style="font-size:12px;color:var(--text3);transition:transform 0.2s">▼</span>
+          </div>
+        </div>
+        <div id="cust-section" style="display:none;border-top:0.5px solid var(--border)">
+          <div id="cust-list"></div>
+        </div>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <button class="btn btn-outline btn-sm" onclick="document.getElementById('csv-upload').click()">匯入 CSV</button>
-        <input type="file" id="csv-upload" accept=".csv" style="display:none" onchange="handleCSV(event)" />
-        <span style="font-size:12px;color:var(--text3);align-self:center">第一欄編號，第二欄名稱</span>
-      </div>
-      <div class="group" id="cust-list"></div>
 
     </div>
   </div>
@@ -638,13 +672,69 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
   </div>
 </div>
 
+<!-- ── List Copy Modal ── -->
+<div class="modal-overlay" id="modal-list-copy" onclick="closeModal('modal-list-copy')">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="modal-title" style="margin-bottom:0" id="list-copy-title">匯出清單</div>
+      <button onclick="closeModal('modal-list-copy')" style="background:none;border:none;font-size:22px;color:var(--text3);cursor:pointer;line-height:1">×</button>
+    </div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:10px">點「複製」後貼到 LINE 或其他地方。</p>
+    <textarea id="list-copy-text" readonly rows="10"
+      style="width:100%;border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;font-family:monospace;background:var(--bg);color:var(--text);resize:none;outline:none;-webkit-user-select:all;user-select:all"
+      onclick="this.select()"></textarea>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <button onclick="doListCopy()" style="flex:2;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:16px;font-weight:600;font-family:inherit;cursor:pointer">複製</button>
+      <button onclick="closeModal('modal-list-copy')" style="flex:1;padding:14px;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);font-size:15px;font-family:inherit;cursor:pointer">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Customer Modal ── -->
+<div class="modal-overlay" id="modal-edit-customer" onclick="closeModal('modal-edit-customer')">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="modal-title" style="margin-bottom:0">編輯客戶</div>
+      <button class="btn-danger-text" style="font-size:14px" onclick="deleteEditCustomer()">刪除</button>
+    </div>
+    <input type="hidden" id="ec-idx" />
+    <div class="modal-field"><label>客戶編號 <span class="required">*</span></label><input type="text" id="ec-id" placeholder="例：C001" /></div>
+    <div class="modal-field"><label>客戶名稱 <span class="required">*</span></label><input type="text" id="ec-name" placeholder="例：王小明" /></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveEditCustomer()">儲存</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-edit-customer')">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Product Modal ── -->
+<div class="modal-overlay" id="modal-edit-product" onclick="closeModal('modal-edit-product')">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="modal-title" style="margin-bottom:0">編輯商品</div>
+      <button class="btn-danger-text" style="font-size:14px" onclick="deleteEditProduct()">刪除</button>
+    </div>
+    <input type="hidden" id="ep-idx" />
+    <div class="modal-field"><label>類別 <span class="required">*</span></label><input type="text" id="ep-cat" list="ep-cat-list" placeholder="例：飲料" /><datalist id="ep-cat-list"></datalist></div>
+    <div class="modal-field"><label>商品名稱 <span class="required">*</span></label><input type="text" id="ep-name" placeholder="例：珍珠奶茶" /></div>
+    <div class="modal-field"><label>價錢（選填）</label><input type="number" id="ep-price" placeholder="例：55" min="0" /></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveEditProduct()">儲存</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-edit-product')">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Edit full customer order modal ── -->
 <div class="modal-overlay" id="modal-edit-order" onclick="closeModal('modal-edit-order')">
   <div class="modal-sheet" onclick="event.stopPropagation()" style="max-height:90dvh;overflow-y:auto">
     <div class="modal-handle"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div class="modal-title" style="margin-bottom:0">編輯訂單</div>
-      <button class="btn-danger-text" style="font-size:14px" onclick="deleteCustomerOrders()">刪除整張</button>
+      <button class="btn-danger-text" style="font-size:14px" id="edit-order-del-btn">刪除整張</button>
     </div>
     <input type="hidden" id="edit-customer-key" />
 
@@ -666,7 +756,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
     </button>
 
     <div class="modal-actions" style="margin-top:12px">
-      <button class="btn btn-primary" onclick="saveFullOrder()">儲存</button>
+      <button class="btn btn-primary" id="edit-order-save-btn">儲存</button>
       <button class="btn btn-outline" onclick="closeModal('modal-edit-order')">取消</button>
     </div>
   </div>
@@ -1047,28 +1137,57 @@ function updateBadge(){
   document.getElementById('enter-badge').textContent=n>0?`已入 ${n} 筆`:'';
 }
 
+// ── 統一客戶標籤：編號 + 名稱同時顯示 ──
+function custLabel(name, id){
+  if(!id) return `<span class="oc-name">${name}</span>`;
+  return `<span style="font-size:12px;color:var(--text3);font-family:monospace;margin-right:6px">${id}</span><span class="oc-name">${name}</span>`;
+}
+
+let _recentIdxMap = {};
+
 function renderRecent(){
   const sec=document.getElementById('recent-section');
   const list=document.getElementById('recent-list');
   if(!S.myOrders.length){ sec.style.display='none'; return; }
   sec.style.display='block';
-  // group last 3 order batches by customer+time
+
+  // build groups from reversed order, keeping original indices
   const groups={};
-  [...S.myOrders].reverse().forEach(o=>{
+  _recentIdxMap={};
+  let mapSeq=0;
+  S.myOrders.map((o,i)=>({...o,_i:i})).reverse().forEach(o=>{
     const key=o.customer+'|'+o.time;
-    if(!groups[key]) groups[key]={customer:o.customer,items:[]};
-    if(groups[key].items.length<5) groups[key].items.push(o);
+    if(!groups[key]) groups[key]={customer:o.customer,customerId:o.customerId||'',items:[]};
+    if(groups[key].items.length<10) groups[key].items.push(o);
   });
-  list.innerHTML=Object.values(groups).slice(0,3).map(g=>`
+
+  list.innerHTML=Object.values(groups).slice(0,5).map(g=>`
     <div class="order-card">
-      <div class="order-card-head"><span class="oc-name">${g.customer}</span></div>
-      <div class="order-card-items">${g.items.map(o=>`
-        <div class="oc-item">
+      <div class="order-card-head" style="justify-content:space-between">
+        <div>${custLabel(g.customer,g.customerId)}</div>
+      </div>
+      <div class="order-card-items">${g.items.map(o=>{
+        const mIdx = mapSeq++;
+        _recentIdxMap[mIdx] = o._i;
+        return `<div class="oc-item">
           <span class="oci-name">${o.product}</span>
-          <span class="oci-qty">×${o.qty}</span>
-        </div>`).join('')}
+          <span class="oci-qty" style="margin-right:8px">×${o.qty}</span>
+          <button onclick="deleteRecentItem(${mIdx})"
+            style="background:none;border:none;color:var(--red);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;flex-shrink:0;padding:0">刪除</button>
+        </div>`;
+      }).join('')}
       </div>
     </div>`).join('');
+}
+
+function deleteRecentItem(mIdx){
+  const orderIdx = _recentIdxMap[mIdx];
+  if(orderIdx===undefined){ toast('找不到該筆'); return; }
+  showConfirm('確定刪除這筆訂單？', ()=>{
+    S.myOrders.splice(orderIdx, 1);
+    save(); updateBadge(); renderRecent();
+    toast('已刪除');
+  });
 }
 
 // ════════════════════════════ MY ORDERS ════════════════════════════
@@ -1107,7 +1226,9 @@ function renderMyOrders(){
   // Sort customers: numbers first then alpha
   const sortedCustomers = sortList(Object.values(byCustomer), g=>g.customer);
 
-  document.getElementById('my-orders-list').innerHTML = sortedCustomers.map(g=>{
+  _custKeyMap = {};
+  document.getElementById('my-orders-list').innerHTML = sortedCustomers.map((g, ci)=>{
+    _custKeyMap[ci] = g.customer;
     // collect all notes (deduplicated, non-empty)
     const allNotes = [...new Set(g.items.map(o=>o.orderNote).filter(Boolean))];
 
@@ -1145,19 +1266,23 @@ function renderMyOrders(){
         </div>`;
     }).join('');
 
+    const safeKey = g.customer.replace(/"/g,'&quot;');
     return `
-    <div class="order-card" style="margin-bottom:14px">
-      <div class="order-card-head" style="cursor:pointer" onclick="openEditCustomerOrder('${esc(g.customer)}')">
-        <div>
-          <span class="oc-name">${g.customer}</span>
-          ${g.customerId?`<span style="font-size:12px;color:var(--text3);margin-left:6px">${g.customerId}</span>`:''}
+    <div class="order-card" style="margin-bottom:14px" data-custkey="${safeKey}">
+      <div class="order-card-head">
+        <div style="flex:1;cursor:pointer" onclick="openEditCustomerOrder(${ci})">
+          <div style="margin-bottom:2px">${custLabel(g.customer, g.customerId)}</div>
           <div style="display:flex;gap:10px;margin-top:3px;flex-wrap:wrap">
             <span style="font-size:13px;color:var(--text3)">${custQty} 件</span>
             ${hasPrices?`<span style="font-size:13px;color:var(--green-dark);font-weight:600">$${custTotal.toLocaleString()}</span>`:''}
           </div>
           ${allNotes.length?`<div style="font-size:12px;color:var(--text3);margin-top:3px">📝 ${allNotes.join('・')}</div>`:''}
         </div>
-        <span style="font-size:13px;color:var(--accent);flex-shrink:0">編輯</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
+          <span style="font-size:13px;color:var(--accent);cursor:pointer" onclick="openEditCustomerOrder(${ci})">編輯</span>
+          <button onclick="quickDeleteCustomer(${ci})"
+            style="background:none;border:none;font-size:13px;color:var(--red);cursor:pointer;font-family:inherit;font-weight:500;padding:0">刪除整單</button>
+        </div>
       </div>
       <div class="order-card-items">${catBlocks}</div>
       ${hasPrices?`<div style="display:flex;justify-content:flex-end;padding:10px 16px;border-top:0.5px solid var(--border);font-size:14px;font-weight:600">總計 <span style="color:var(--green-dark);margin-left:8px">$${custTotal.toLocaleString()}</span></div>`:''}
@@ -1184,74 +1309,59 @@ function renderStatsByCat(){
     return;
   }
 
-  // overall totals
   const totalQty = orders.reduce((a,o)=>a+(o.qty||0),0);
-  const totalAmt = orders.reduce((a,o)=>a+(parseFloat(o.price||0)*(o.qty||0)),0);
-  const hasPrices = orders.some(o=>o.price&&parseFloat(o.price)>0);
-
+  const skuCount = new Set(orders.map(o=>o.product)).size;
   boxEl.innerHTML=`
     <div class="stat-box"><div class="st-label">總數量</div><div class="st-val">${totalQty}</div></div>
-    <div class="stat-box"><div class="st-label">總金額</div><div class="st-val" style="font-size:${totalAmt>=10000?'18px':'24px'}">${hasPrices?'$'+totalAmt.toLocaleString():'—'}</div></div>`;
+    <div class="stat-box"><div class="st-label">商品種類</div><div class="st-val">${skuCount}</div></div>`;
 
-  // build cat → product map
-  const catMap = {};
+  // build cat → product qty map
+  const catMap={};
   orders.forEach(o=>{
-    const cat = o.cat||'未分類';
-    if(!catMap[cat]) catMap[cat]={qty:0,amt:0,products:{}};
-    catMap[cat].qty += (o.qty||0);
-    catMap[cat].amt += parseFloat(o.price||0)*(o.qty||0);
-    const pname = o.product;
-    if(!catMap[cat].products[pname]) catMap[cat].products[pname]={qty:0,amt:0,price:o.price||''};
-    catMap[cat].products[pname].qty += (o.qty||0);
-    catMap[cat].products[pname].amt += parseFloat(o.price||0)*(o.qty||0);
-    if(o.price) catMap[cat].products[pname].price=o.price;
+    const cat=o.cat||'未分類';
+    if(!catMap[cat]) catMap[cat]={qty:0,products:{}};
+    catMap[cat].qty+=(o.qty||0);
+    if(!catMap[cat].products[o.product]) catMap[cat].products[o.product]=0;
+    catMap[cat].products[o.product]+=(o.qty||0);
   });
 
-  // sort cats: numbers first then alpha
-  const sortedCatKeys = sortList(Object.keys(catMap), c=>c);
+  const sortedCats = sortList(Object.keys(catMap), c=>c);
 
-  catEl.innerHTML = sortedCatKeys.map((cat,ci)=>{
+  catEl.innerHTML = sortedCats.map(cat=>{
     const data = catMap[cat];
-    // sort products within cat: numbers first then alpha by name
     const prods = sortList(Object.entries(data.products), ([name])=>name);
-    const catHasPrices = prods.some(([,p])=>p.price&&parseFloat(p.price)>0);
-    return `
-    <div class="cat-block">
-      <div class="cat-block-head open" id="cbh-${ci}" onclick="toggleCatBlock(${ci})">
-        <span class="cb-name">${cat}</span>
-        <div class="cb-meta">
-          <span>共 ${data.qty} 件</span>
-          ${catHasPrices?`<span style="color:var(--green-dark);font-weight:600">$${data.amt.toLocaleString()}</span>`:''}
-          <span class="cb-chevron">▲</span>
-        </div>
+    return `<div style="margin-bottom:12px;border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:var(--surface2);border-bottom:0.5px solid var(--border)">
+        <span style="font-weight:600;font-size:15px">${cat}</span>
+        <span style="font-size:13px;color:var(--accent);font-weight:600">共 ${data.qty} 件</span>
       </div>
-      <div class="cat-block-body" id="cbb-${ci}">
-        ${prods.map(([name,p])=>`
-        <div class="cat-prod-row">
-          <span style="font-size:17px;font-weight:800;color:var(--red);min-width:44px;text-align:center;flex-shrink:0">${p.qty}</span>
-          <span class="cpr-name" style="flex:1">${name}</span>
-          <div class="cpr-right">
-            ${p.price&&parseFloat(p.price)>0?`<span class="cpr-amt">$${p.amt.toLocaleString()}</span>`:''}
-          </div>
-        </div>`).join('')}
-        <div style="display:flex;justify-content:space-between;padding:10px 16px;background:var(--bg);font-size:13px;font-weight:600;color:var(--text2)">
-          <span>小計</span>
-          <div style="display:flex;gap:14px">
-            ${catHasPrices?`<span style="color:var(--green-dark)">$${data.amt.toLocaleString()}</span>`:''}
-            <span style="color:var(--accent)">${data.qty} 件</span>
-          </div>
-        </div>
-      </div>
+      ${prods.map(([name,qty])=>`
+      <div style="display:flex;align-items:center;padding:10px 16px;border-bottom:0.5px solid var(--border)">
+        <span style="font-size:17px;font-weight:800;color:var(--red);min-width:44px;text-align:center;flex-shrink:0">${qty}</span>
+        <span style="font-size:14px;font-weight:500">${name}</span>
+      </div>`).join('')}
     </div>`;
   }).join('');
 }
 
-function toggleCatBlock(ci){
-  const head = document.getElementById('cbh-'+ci);
-  const body = document.getElementById('cbb-'+ci);
-  const isOpen = head.classList.contains('open');
-  head.classList.toggle('open', !isOpen);
-  body.style.display = isOpen ? 'none' : 'block';
+// ════════════════════════════ SYNC MY ORDERS ════════════════════════════
+function syncMyOrders(){
+  if(!S.myOrders.length){ toast('我的訂單是空的'); return; }
+  // find existing 'myOrders' source and replace, or add new
+  const label = '我的訂單（同步）';
+  const idx = S.mergeSources.findIndex(s=>s.label===label);
+  const snapshot = JSON.parse(JSON.stringify(S.myOrders)); // deep copy
+  if(idx>=0){
+    S.mergeSources[idx].orders = snapshot;
+  } else {
+    S.mergeSources.push({label, orders: snapshot});
+  }
+  // uncheck "include mine" to avoid double counting
+  document.getElementById('include-mine').checked = false;
+  save(); renderMerge();
+  const n = snapshot.length;
+  document.getElementById('sync-status').textContent = `已同步 ${n} 筆（${new Date().toLocaleTimeString('zh-TW',{hour12:false})}）`;
+  toast(`✓ 已同步 ${n} 筆入單資料`);
 }
 
 // ════════════════════════════ MERGE ════════════════════════════
@@ -1280,16 +1390,19 @@ function renderMerge(){
   // Sources
   const srcEl=document.getElementById('merge-sources-list');
   srcEl.innerHTML=S.mergeSources.length
-    ? S.mergeSources.map((s,i)=>`<div class="merge-src">
-        <div><div class="ms-label">${s.label}</div><div class="ms-count">${s.orders.length} 筆</div></div>
-        <button class="ms-del" onclick="removeMergeSrc(${i})">×</button>
-      </div>`).join('')
+    ? S.mergeSources.map((s,i)=>{
+        const custCount=new Set(s.orders.map(o=>o.customer)).size;
+        return `<div class="merge-src">
+          <div><div class="ms-label">${s.label}</div><div class="ms-count">${s.orders.length} 筆・${custCount} 位客戶</div></div>
+          <button class="ms-del" onclick="removeMergeSrc(${i})">×</button>
+        </div>`;
+      }).join('')
     : '<div class="empty-state" style="padding:20px"><p>尚無來源</p></div>';
 
   const all=getMergedOrders();
-  const sum=buildSummary(all);
   const custs=new Set(all.map(o=>o.customer)).size;
   const totalQty=all.reduce((a,o)=>a+(o.qty||0),0);
+  const sum=buildSummary(all);
 
   document.getElementById('merge-stats-row').innerHTML=`
     <div class="stat-box"><div class="st-label">總筆數</div><div class="st-val">${all.length}</div></div>
@@ -1298,12 +1411,56 @@ function renderMerge(){
     <div class="stat-box"><div class="st-label">客戶人數</div><div class="st-val">${custs}</div></div>`;
 
   const prevWrap=document.getElementById('merge-preview-wrap');
-  if(!sum.length){ prevWrap.style.display='none'; return; }
+  if(!all.length){ prevWrap.style.display='none'; return; }
   prevWrap.style.display='block';
-  const total=sum.reduce((a,s)=>a+s.qty,0);
-  document.getElementById('merge-sum-table').innerHTML=
-    sum.map(s=>`<div class="sum-row"><span>${s.product}</span><span class="sr-qty">${s.qty}</span></div>`).join('')+
-    `<div class="sum-row sum-total"><span>合計</span><span class="sr-qty">${total}</span></div>`;
+
+  // group by customer, sort by customer name
+  const byCustomer={};
+  all.forEach(o=>{
+    if(!byCustomer[o.customer]) byCustomer[o.customer]={id:o.customerId||'',items:[]};
+    byCustomer[o.customer].items.push(o);
+  });
+  const sortedCusts = sortList(Object.keys(byCustomer), n=>n);
+
+  document.getElementById('merge-sum-table').innerHTML = sortedCusts.map(name=>{
+    const g = byCustomer[name];
+    const byCat={};
+    g.items.forEach(o=>{ const cat=o.cat||'未分類'; if(!byCat[cat]) byCat[cat]=[]; byCat[cat].push(o); });
+    const sortedCats = sortList(Object.keys(byCat), c=>c);
+    const catRows = sortedCats.map(cat=>{
+      const items = sortList(byCat[cat], o=>o.product);
+      return `<div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;padding:5px 14px 2px;background:var(--bg);letter-spacing:0.04em">${cat}</div>`+
+        items.map(o=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:0.5px solid var(--border);font-size:14px">
+          <span>${o.product}</span>
+          <span style="font-weight:700;color:var(--red)">×${o.qty}</span>
+        </div>`).join('');
+    }).join('');
+
+    const safeId = g.id ? g.id.replace(/"/g,'&quot;') : '';
+    const safeNameAttr = name.replace(/"/g,'&quot;');
+    const inMine = S.myOrders.some(o=>o.customer===name);
+    const srcIdx = S.mergeSources.findIndex(s=>s.orders.some(o=>o.customer===name));
+    let editBtn = '';
+    if(inMine){
+      editBtn = `<button data-custkey="${safeNameAttr}" onclick="openEditCustomerOrder(this.dataset.custkey)"
+        style="background:var(--accent-bg);border:none;border-radius:6px;padding:5px 10px;font-size:12px;color:var(--accent);font-weight:600;font-family:inherit;cursor:pointer;flex-shrink:0">編輯</button>`;
+    } else if(srcIdx>=0){
+      editBtn = `<button data-srcidx="${srcIdx}" data-custkey="${safeNameAttr}" onclick="openMergeCustomerEdit(parseInt(this.dataset.srcidx),this.dataset.custkey)"
+        style="background:var(--accent-bg);border:none;border-radius:6px;padding:5px 10px;font-size:12px;color:var(--accent);font-weight:600;font-family:inherit;cursor:pointer;flex-shrink:0">編輯</button>`;
+    }
+
+    return `<div style="margin-bottom:10px;border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">
+      <div style="padding:10px 14px;background:var(--surface2);border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:6px">
+        <div style="display:flex;align-items:center;gap:6px">
+          ${g.id?`<span style="font-size:12px;color:var(--text3);font-family:monospace">${g.id}</span>`:''}
+          <span style="font-weight:600;font-size:15px">${name}</span>
+        </div>
+        ${editBtn}
+      </div>
+      ${catRows}
+    </div>`;
+  }).join('');
+
   // refresh stats tab if visible
   if(document.getElementById('mtab-stats')&&document.getElementById('mtab-stats').classList.contains('active')) renderStatsByCat();
 }
@@ -1345,6 +1502,76 @@ function exportExcel(){
   toast('✓ Excel 已匯出（3 個工作表）');
 }
 
+// ════════════════════════════ MERGE ORDER EDIT ════════════════════════════
+let mergeEditSrcIdx = -1;
+let mergeEditCustomerKey = '';
+
+function openMergeCustomerEdit(srcIdx, customerKey){
+  mergeEditSrcIdx = srcIdx;
+  mergeEditCustomerKey = customerKey;
+  const src = S.mergeSources[srcIdx]; if(!src) return;
+  const items = src.orders.map((o,i)=>({...o,idx:i})).filter(o=>o.customer===customerKey);
+  document.getElementById('edit-customer-key').value = customerKey;
+  document.getElementById('edit-customer-name').value = customerKey;
+  editRowSeq=0;
+  const container=document.getElementById('edit-items-list');
+  container.innerHTML='';
+  items.forEach(o=>addEditItemRow(o));
+  document.getElementById('edit-order-save-btn').onclick = saveMergeFullOrder;
+  document.getElementById('edit-order-del-btn').onclick = deleteMergeCustomerOrders;
+  openModal('modal-edit-order');
+}
+
+function saveMergeFullOrder(){
+  const newName = document.getElementById('edit-customer-name').value.trim();
+  if(!newName){ toast('請填入客戶名稱'); return; }
+  if(!S.customers.some(c=>c.name===newName||c.id===newName)){ alertGoManage(`找不到客戶「${newName}」`); return; }
+
+  const rows=[...document.querySelectorAll('#edit-items-list > div')];
+  if(!rows.length){ toast('請至少保留一項商品'); return; }
+  const newItems=[]; let err=false;
+  rows.forEach((row,i)=>{
+    if(err) return;
+    const inputs=row.querySelectorAll('input[type=text],input[type=number]');
+    const product=inputs[0].value.trim();
+    const qty=parseInt(inputs[1].value)||0;
+    const note=inputs[2].value.trim();
+    if(!product){ toast(`第 ${i+1} 行請填商品名稱`); err=true; return; }
+    if(qty<1){ toast(`第 ${i+1} 行數量需 ≥ 1`); err=true; return; }
+    if(!S.products.some(p=>p.name===product)){ alertGoManage(`找不到商品「${product}」`); err=true; return; }
+    const prod=S.products.find(p=>p.name===product)||{};
+    newItems.push({product, qty, price:prod.price||'', cat:prod.cat||'', note});
+  });
+  if(err) return;
+
+  const src=S.mergeSources[mergeEditSrcIdx]; if(!src) return;
+  const orig=src.orders.find(o=>o.customer===mergeEditCustomerKey)||{};
+  const custObj=S.customers.find(c=>c.name===newName||c.id===newName)||{};
+  const time=new Date().toLocaleString('zh-TW',{hour12:false});
+
+  // remove old orders for this customer in this source
+  src.orders=src.orders.filter(o=>o.customer!==mergeEditCustomerKey);
+  // add new
+  newItems.forEach(item=>{
+    src.orders.push({customer:custObj.name||newName, customerId:custObj.id||orig.customerId||'',
+      product:item.product, qty:item.qty, price:item.price, cat:item.cat,
+      note:item.note, orderNote:orig.orderNote||'', time});
+  });
+  save(); closeModal('modal-edit-order');
+  renderMerge(); toast('✓ 已更新');
+}
+
+function deleteMergeCustomerOrders(){ deleteMergeCustomerOrdersConfirmed(); }
+
+// ════════════════════════════ MANAGE ACCORDION ════════════════════════════
+function toggleSection(key){
+  const sec = document.getElementById(key+'-section');
+  const chev = document.getElementById(key+'-chevron');
+  const open = sec.style.display==='none';
+  sec.style.display = open ? 'block' : 'none';
+  chev.style.transform = open ? 'rotate(180deg)' : '';
+}
+
 // ════════════════════════════ CUSTOMERS ════════════════════════════
 
 // Sort: numbers first (by numeric value), then letters (alphabetically)
@@ -1378,9 +1605,33 @@ function renderCustList(){
     const i = S.customers.indexOf(c);
     return `<div class="manage-item">
       <div><div style="font-weight:500">${c.name}</div><div style="font-size:13px;color:var(--text3);font-family:monospace">${c.id}</div></div>
-      <button class="mi-del" onclick="deleteCustomer(${i})">×</button>
+      <button onclick="openEditCustomer(${i})" style="background:var(--accent-bg);border:none;border-radius:6px;padding:5px 10px;font-size:12px;color:var(--accent);font-weight:600;font-family:inherit;cursor:pointer;flex-shrink:0">編輯</button>
     </div>`;
   }).join('')}</div>`;
+}
+function openEditCustomer(i){
+  const c = S.customers[i]; if(!c) return;
+  document.getElementById('ec-idx').value = i;
+  document.getElementById('ec-id').value = c.id;
+  document.getElementById('ec-name').value = c.name;
+  openModal('modal-edit-customer');
+}
+function saveEditCustomer(){
+  const i = parseInt(document.getElementById('ec-idx').value);
+  const id = document.getElementById('ec-id').value.trim();
+  const name = document.getElementById('ec-name').value.trim();
+  if(!id||!name){ toast('請填入編號和名稱'); return; }
+  if(S.customers.some((c,j)=>c.id===id&&j!==i)){ toast('編號已存在'); return; }
+  S.customers[i] = {id, name}; save();
+  closeModal('modal-edit-customer'); renderCustList(); toast('✓ 已更新');
+}
+function deleteEditCustomer(){
+  const i = parseInt(document.getElementById('ec-idx').value);
+  const name = S.customers[i]?.name||'';
+  showConfirm(`確定刪除客戶「${name}」？`, ()=>{
+    S.customers.splice(i,1); save();
+    closeModal('modal-edit-customer'); renderCustList(); toast('已刪除');
+  });
 }
 function handleCSV(e){
   const file=e.target.files[0]; if(!file) return;
@@ -1399,12 +1650,11 @@ function handleCSV(e){
 }
 
 // ════════════════════════════ PRODUCTS ════════════════════════════
-function addProduct(){ addProductsBulk(); } // alias, handled by bulk
+function addProduct(){ addProductsBulk(); }
 function deleteProduct(i){ S.products.splice(i,1); save(); renderProdList(); rebuildAllCatSelects(); }
 function renderProdList(){
   const el=document.getElementById('prod-list');
   if(!S.products.length){ el.innerHTML='<div class="empty-state" style="padding:24px"><p>尚無商品</p></div>'; return; }
-  // Group by category, sort categories
   const byCat={};
   S.products.forEach((p,i)=>{ const c=p.cat||'無類別'; if(!byCat[c]) byCat[c]=[]; byCat[c].push({...p,_i:i}); });
   const sortedCats = sortList(Object.keys(byCat), c=>c);
@@ -1413,14 +1663,91 @@ function renderProdList(){
     return `<div>
       <div style="padding:8px 16px 4px;font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;border-bottom:0.5px solid var(--border);background:var(--bg)">${cat}</div>
       ${prods.map(p=>`<div class="manage-item">
-        <div>
-          <div style="font-weight:500">${p.name}</div>
-          ${p.price?`<div style="font-size:13px;color:var(--text3)">$${p.price}</div>`:''}
-        </div>
-        <button class="mi-del" onclick="deleteProduct(${p._i})">×</button>
+        <div><div style="font-weight:500">${p.name}</div>${p.price?`<div style="font-size:13px;color:var(--text3)">$${p.price}</div>`:''}</div>
+        <button onclick="openEditProduct(${p._i})" style="background:var(--accent-bg);border:none;border-radius:6px;padding:5px 10px;font-size:12px;color:var(--accent);font-weight:600;font-family:inherit;cursor:pointer;flex-shrink:0">編輯</button>
       </div>`).join('')}
     </div>`;
   }).join('');
+}
+function openEditProduct(i){
+  const p = S.products[i]; if(!p) return;
+  document.getElementById('ep-idx').value = i;
+  document.getElementById('ep-cat').value = p.cat||'';
+  document.getElementById('ep-name').value = p.name||'';
+  document.getElementById('ep-price').value = p.price||'';
+  // populate datalist
+  const cats=[...new Set(S.products.map(x=>x.cat).filter(Boolean))];
+  document.getElementById('ep-cat-list').innerHTML=cats.map(c=>`<option value="${c}">`).join('');
+  openModal('modal-edit-product');
+}
+function saveEditProduct(){
+  const i = parseInt(document.getElementById('ep-idx').value);
+  const cat = document.getElementById('ep-cat').value.trim();
+  const name = document.getElementById('ep-name').value.trim();
+  const price = document.getElementById('ep-price').value.trim();
+  if(!cat||!name){ toast('請填入類別和商品名稱'); return; }
+  if(S.products.some((p,j)=>p.name===name&&p.cat===cat&&j!==i)){ toast('此類別已有相同商品'); return; }
+  S.products[i]={cat,name,price:price||''}; save();
+  closeModal('modal-edit-product'); renderProdList(); rebuildAllCatSelects(); toast('✓ 已更新');
+}
+function deleteEditProduct(){
+  const i = parseInt(document.getElementById('ep-idx').value);
+  const name = S.products[i]?.name||'';
+  showConfirm(`確定刪除商品「${name}」？`, ()=>{
+    S.products.splice(i,1); save();
+    closeModal('modal-edit-product'); renderProdList(); rebuildAllCatSelects(); toast('已刪除');
+  });
+}
+
+// ── 全域客戶名稱 map，供刪除用 ──
+let _custKeyMap = {};
+
+function quickDeleteCustomer(idx){
+  const key = _custKeyMap[idx];
+  if(!key){ toast('找不到客戶，請先重新整理頁面'); return; }
+  showConfirm(`確定刪除「${key}」的所有訂單？`, ()=>{
+    S.myOrders = S.myOrders.filter(o=>o.customer!==key);
+    save(); renderMyOrders(); updateBadge();
+    toast(`已刪除「${key}」的訂單`);
+  });
+}
+
+function deleteCustomerOrders(){
+  const key = document.getElementById('edit-customer-key').value;
+  if(!key){ toast('找不到客戶'); return; }
+  showConfirm(`確定刪除「${key}」的所有訂單？`, ()=>{
+    S.myOrders = S.myOrders.filter(o=>o.customer!==key);
+    save(); closeModal('modal-edit-order'); renderMyOrders(); updateBadge();
+    toast(`已刪除「${key}」的訂單`);
+  });
+}
+
+function deleteMergeCustomerOrdersConfirmed(){
+  const key = mergeEditCustomerKey;
+  showConfirm(`確定刪除「${key}」在此來源的所有訂單？`, ()=>{
+    const src=S.mergeSources[mergeEditSrcIdx]; if(!src) return;
+    src.orders=src.orders.filter(o=>o.customer!==key);
+    save(); closeModal('modal-edit-order');
+    document.getElementById('edit-order-save-btn').onclick = saveFullOrder;
+    document.getElementById('edit-order-del-btn').onclick = deleteCustomerOrders;
+    renderMerge(); toast(`已刪除「${key}」的訂單`);
+  });
+}
+
+// ── Custom confirm overlay (replaces native confirm which may be blocked) ──
+function showConfirm(msg, onOk){
+  const overlay = document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML=`<div style="background:var(--surface);border-radius:var(--radius);padding:24px 20px;max-width:320px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+    <div style="font-size:15px;font-weight:500;margin-bottom:20px;line-height:1.5">${msg}</div>
+    <div style="display:flex;gap:10px">
+      <button id="_conf_cancel" style="flex:1;padding:12px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);font-size:15px;font-family:inherit;cursor:pointer">取消</button>
+      <button id="_conf_ok" style="flex:1;padding:12px;border:none;border-radius:var(--radius-sm);background:var(--red);color:#fff;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer">確定刪除</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_conf_cancel').onclick = ()=>overlay.remove();
+  overlay.querySelector('#_conf_ok').onclick = ()=>{ overlay.remove(); onOk(); };
 }
 
 function exportMyJSON(){} // kept for compat
@@ -1428,16 +1755,21 @@ function exportMyJSON(){} // kept for compat
 // ── Edit full customer order ──
 let editRowSeq = 0;
 
-function openEditCustomerOrder(customerKey){
+function openEditCustomerOrder(keyOrIdx){
+  // support both numeric index (from _custKeyMap) and direct string key
+  const customerKey = (typeof keyOrIdx === 'number' || /^\d+$/.test(String(keyOrIdx))) && _custKeyMap[keyOrIdx] !== undefined
+    ? _custKeyMap[keyOrIdx]
+    : keyOrIdx;
   const items = S.myOrders.map((o,i)=>({...o,idx:i})).filter(o=>o.customer===customerKey);
   if(!items.length) return;
   document.getElementById('edit-customer-key').value = customerKey;
   document.getElementById('edit-customer-name').value = customerKey;
-  // build item rows
   editRowSeq = 0;
   const container = document.getElementById('edit-items-list');
   container.innerHTML = '';
   items.forEach(o => addEditItemRow(o));
+  document.getElementById('edit-order-save-btn').onclick = saveFullOrder;
+  document.getElementById('edit-order-del-btn').onclick = deleteCustomerOrders;
   openModal('modal-edit-order');
 }
 
@@ -1556,7 +1888,6 @@ function saveFullOrder(){
   }
 
   const rows = [...document.querySelectorAll('#edit-items-list > div')];
-  if(!rows.length){ toast('請至少保留一項商品'); return; }
   const newItems = [];
   let err = false;
   rows.forEach((row,i)=>{
@@ -1564,20 +1895,18 @@ function saveFullOrder(){
     const inputs = row.querySelectorAll('input[type=text], input[type=number]');
     const product = inputs[0].value.trim();
     const qty     = parseInt(inputs[1].value)||0;
-    const note    = inputs[2].value.trim();
-    if(!product){ toast(`第 ${i+1} 行請填商品名稱`); err=true; return; }
-    if(qty<1)   { toast(`第 ${i+1} 行數量需 ≥ 1`);  err=true; return; }
-    // validate product exists
-    if(!S.products.some(p=>p.name===product)){
-      alertGoManage(`找不到商品「${product}」`); err=true; return;
-    }
+    const note    = inputs[2] ? inputs[2].value.trim() : '';
+    // skip completely blank rows (no product name)
+    if(!product) return;
     const prod = S.products.find(p=>p.name===product)||{};
-    newItems.push({ product, qty, price:prod.price||'', cat:prod.cat||'', note });
+    newItems.push({ product, qty: qty||0, price:prod.price||'', cat:prod.cat||'', note });
   });
   if(err) return;
+  if(!newItems.length){ toast('請至少填入一項商品名稱'); return; }
 
   // find original customerId & orderNote from first matching order
   const orig = S.myOrders.find(o=>o.customer===oldKey)||{};
+  const custObj = S.customers.find(c=>c.name===newName||c.id===newName)||{};
   const time  = new Date().toLocaleString('zh-TW',{hour12:false});
 
   // remove all old orders for this customer
@@ -1586,8 +1915,8 @@ function saveFullOrder(){
   // insert new items
   newItems.forEach(item=>{
     S.myOrders.push({
-      customer: newName,
-      customerId: orig.customerId||'',
+      customer: custObj.name||newName,
+      customerId: custObj.id||orig.customerId||'',
       product: item.product,
       qty: item.qty,
       price: item.price,
@@ -1602,13 +1931,7 @@ function saveFullOrder(){
   toast('✓ 已更新');
 }
 
-function deleteCustomerOrders(){
-  const key = document.getElementById('edit-customer-key').value;
-  if(!confirm(`確定刪除「${key}」的所有訂單？`)) return;
-  S.myOrders = S.myOrders.filter(o=>o.customer!==key);
-  save(); closeModal('modal-edit-order'); renderMyOrders(); updateBadge();
-  toast(`已刪除「${key}」的訂單`);
-}
+function deleteMergeCustomerOrders(){ deleteMergeCustomerOrdersConfirmed(); }
 
 // kept stubs for any lingering references
 function openEditOrder(){}
@@ -1749,7 +2072,48 @@ function confirmPaste(){
   }
 }
 
+// ════════════════════════════ LIST COPY ════════════════════════════
+function showListCopyModal(type){
+  let title='', text='';
+  if(type==='prod'){
+    if(!S.products.length){ toast('尚無商品可匯出'); return; }
+    title='商品清單';
+    const byCat={};
+    S.products.forEach(p=>{ const c=p.cat||'無類別'; if(!byCat[c]) byCat[c]=[]; byCat[c].push(p); });
+    const sortedCats=sortList(Object.keys(byCat),c=>c);
+    const lines=[];
+    sortedCats.forEach(cat=>{
+      lines.push(`【${cat}】`);
+      sortList(byCat[cat],p=>p.name).forEach(p=>{ lines.push(`${p.name}${p.price?' $'+p.price:''}`); });
+    });
+    text=lines.join('\n');
+  } else {
+    if(!S.customers.length){ toast('尚無客戶可匯出'); return; }
+    title='客戶名單';
+    const sorted=sortList(S.customers,c=>c.id);
+    text=sorted.map(c=>`${c.id}  ${c.name}`).join('\n');
+  }
+  document.getElementById('list-copy-title').textContent=title;
+  const ta=document.getElementById('list-copy-text');
+  ta.value=text;
+  openModal('modal-list-copy');
+  setTimeout(()=>{ ta.focus(); ta.select(); },350);
+}
+
+function doListCopy(){
+  const ta=document.getElementById('list-copy-text');
+  ta.select();
+  const ok=()=>toast('✓ 已複製');
+  const fail=()=>toast('請長按文字框手動複製');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(ta.value).then(ok).catch(()=>{ try{ document.execCommand('copy'); ok(); }catch(e){ fail(); } });
+  } else { try{ document.execCommand('copy'); ok(); }catch(e){ fail(); } }
+}
+
 // ════════════════════════════ INIT ════════════════════════════
+// Set default handlers for edit order modal buttons
+document.getElementById('edit-order-save-btn').onclick = saveFullOrder;
+document.getElementById('edit-order-del-btn').onclick = deleteCustomerOrders;
 updateBadge(); renderRecent(); addRow();
 </script>
 </body>
