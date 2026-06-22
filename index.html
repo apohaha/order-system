@@ -548,6 +548,17 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
     </div>
     <div class="section">
 
+      <!-- 清空記憶 -->
+      <div class="group" style="margin-bottom:16px">
+        <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-weight:600;font-size:15px">清空所有記憶</div>
+            <div style="font-size:13px;color:var(--text3);margin-top:2px">清除所有訂單、商品、客戶資料</div>
+          </div>
+          <button onclick="clearAllData()" style="background:var(--red);color:#fff;border:none;border-radius:var(--radius-sm);padding:8px 14px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;flex-shrink:0">清空</button>
+        </div>
+      </div>
+
       <!-- Config export/import -->
       <div class="section-title">設定檔</div>
       <div class="notice" style="margin-bottom:10px">
@@ -2108,6 +2119,17 @@ function doListCopy(){
   if(navigator.clipboard&&navigator.clipboard.writeText){
     navigator.clipboard.writeText(ta.value).then(ok).catch(()=>{ try{ document.execCommand('copy'); ok(); }catch(e){ fail(); } });
   } else { try{ document.execCommand('copy'); ok(); }catch(e){ fail(); } }
+}
+
+function clearAllData(){
+  showConfirm('確定清空所有訂單、商品、客戶資料？\n此操作無法復原！', ()=>{
+    try{ localStorage.removeItem('oss_v4'); }catch(e){}
+    Object.assign(S,{myOrders:[],products:[],customers:[],mergeSources:[]});
+    save();
+    renderMyOrders(); updateBadge(); renderRecent();
+    renderCustList(); renderProdList();
+    toast('✓ 已清空所有資料');
+  });
 }
 
 // ════════════════════════════ INIT ════════════════════════════
