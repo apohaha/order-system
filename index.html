@@ -1177,11 +1177,11 @@ function submitOrder(){
   if(err) return;
 
   const time=new Date().toLocaleString('zh-TW',{hour12:false});
-  // get customerId from customers list if not already set
   const custObj=S.customers.find(c=>c.name===customer||c.id===customer);
   const finalId=custObj?custObj.id:customerId;
   items.forEach(item=>{
-    S.myOrders.push({customer:custObj?custObj.name:customer, customerId:finalId, product:item.product,qty:item.qty,price:item.price,cat:item.cat,note:item.note,orderNote:note,time,session:getCurrentSessionName()});
+    const orderId = `${Date.now()}-${Math.random().toString(36).substr(2,6)}`;
+    S.myOrders.push({customer:custObj?custObj.name:customer, customerId:finalId, product:item.product,qty:item.qty,price:item.price,cat:item.cat,note:item.note,orderNote:note,time,session:getCurrentSessionName(),orderId});
   });
   save(); updateBadge(); renderRecent(); resetForm();
   toast(`✓ ${custObj?custObj.name:customer} — 已新增 ${items.length} 項`);
@@ -2314,7 +2314,7 @@ function loadNotionSettings(){
   }catch(e){}
 }
 
-async function notionRequest(method, path, body){
+async function notionRequest(method, path, body, silent=false){
   const token = getNotionToken(); if(!token) return null;
   try{
     const res = await fetch(NOTION_WORKER + path, {
@@ -2324,21 +2324,53 @@ async function notionRequest(method, path, body){
     });
     const data = await res.json();
     if(!res.ok){
-      const msg = data.message || data.code || JSON.stringify(data);
-      alert('Notion 錯誤 ' + res.status + ':\n' + msg);
+      if(!silent){
+        const msg = data.message || data.code || JSON.stringify(data);
+        alert('Notion 錯誤 ' + res.status + ':\n' + msg);
+      }
       return null;
     }
     return data;
-  }catch(err){ alert('網路錯誤：' + err.message); return null; }
+  }catch(err){
+    if(!silent) alert('網路錯誤：' + err.message);
+    return null;
+  }
 }
 
-// 推送訂單
+// 分頁讀取（無上限）
+async function notionQueryAll(dbId){
+  let results = [];
+  let cursor = undefined;
+  let page = 0;
+  while(true){
+    page++;
+    const body = { page_size: 100 };
+    if(cursor) body.start_cursor = cursor;
+    const res = await notionRequest('POST', `/v1/databases/${dbId}/query`, body, true);
+    if(!res || !res.results) break;
+    results = results.concat(res.results);
+    if(!res.has_more || !res.next_cursor) break;
+    cursor = res.next_cursor;
+    if(page > 50) break;
+  }
+  return results;
+}
+
+// 推送訂單（防重複）
 async function notionPushOrders(){
   const token = getNotionToken(); if(!token) return;
   if(!S.myOrders.length){ toast('沒有訂單可推送'); return; }
-  toast('推送中…');
-  let ok=0, fail=0;
+  toast('檢查重複中…');
+
+  const existing = await notionQueryAll(NOTION_DB.orders);
+  const existingIds = new Set(
+    existing.map(r=>r.properties['訂單ID']?.rich_text?.[0]?.plain_text||'').filter(Boolean)
+  );
+
+  let ok=0, skip=0, fail=0;
   for(const o of S.myOrders){
+    if(!o.orderId) o.orderId = `${Date.now()}-${Math.random().toString(36).substr(2,6)}`;
+    if(existingIds.has(o.orderId)){ skip++; continue; }
     const body = {
       parent:{ database_id: NOTION_DB.orders },
       properties:{
@@ -2351,12 +2383,15 @@ async function notionPushOrders(){
         '單項備註':{ rich_text:[{ text:{ content: o.note||'' } }] },
         '整筆備註':{ rich_text:[{ text:{ content: o.orderNote||'' } }] },
         '場次':    { rich_text:[{ text:{ content: o.session||'' } }] },
+        '入單時間':{ rich_text:[{ text:{ content: o.time||'' } }] },
+        '訂單ID':  { rich_text:[{ text:{ content: o.orderId } }] },
       }
     };
-    const res = await notionRequest('POST', '/v1/pages', body);
+    const res = await notionRequest('POST', '/v1/pages', body, true);
     if(res && res.id) ok++; else fail++;
   }
-  toast(`✓ 推送完成：${ok} 筆成功${fail?'，'+fail+' 筆失敗':''}`);
+  save();
+  toast(`✓ 推送完成：${ok} 筆新增，${skip} 筆已存在跳過${fail?'，'+fail+' 筆失敗':''}`);
 }
 
 // 推送客戶名單
@@ -2373,7 +2408,7 @@ async function notionPushCustomers(){
         '編號':{ rich_text:[{ text:{ content: c.id||'' } }] },
       }
     };
-    const res = await notionRequest('POST', '/v1/pages', body);
+    const res = await notionRequest('POST', '/v1/pages', body, true);
     if(res && res.id) ok++; else fail++;
   }
   toast(`✓ 客戶推送完成：${ok} 筆${fail?'，'+fail+' 筆失敗':''}`);
@@ -2395,26 +2430,10 @@ async function notionPushProducts(){
         '場次':    { rich_text:[{ text:{ content: getCurrentSessionName() } }] },
       }
     };
-    const res = await notionRequest('POST', '/v1/pages', body);
+    const res = await notionRequest('POST', '/v1/pages', body, true);
     if(res && res.id) ok++; else fail++;
   }
   toast(`✓ 商品推送完成：${ok} 筆${fail?'，'+fail+' 筆失敗':''}`);
-}
-
-// 分頁讀取所有資料
-async function notionQueryAll(dbId){
-  let results = [];
-  let cursor = undefined;
-  while(true){
-    const body = { page_size: 100 };
-    if(cursor) body.start_cursor = cursor;
-    const res = await notionRequest('POST', `/v1/databases/${dbId}/query`, body);
-    if(!res) break;
-    results = results.concat(res.results||[]);
-    if(!res.has_more) break;
-    cursor = res.next_cursor;
-  }
-  return results;
 }
 
 // 讀取所有資料
