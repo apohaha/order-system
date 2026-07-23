@@ -2415,6 +2415,7 @@ async function notionPushProducts(){
         '商品名稱':{ title:[{ text:{ content: p.name||'' } }] },
         '類別':    { rich_text:[{ text:{ content: p.cat||'' } }] },
         '價格':    { number: parseFloat(p.price)||0 },
+        '場次':    { rich_text:[{ text:{ content: getCurrentSessionName() } }] },
       }
     };
     const res = await notionRequest('POST', '/v1/pages', body);
