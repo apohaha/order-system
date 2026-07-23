@@ -2401,25 +2401,41 @@ async function notionPushProducts(){
   toast(`✓ 商品推送完成：${ok} 筆${fail?'，'+fail+' 筆失敗':''}`);
 }
 
+// 分頁讀取所有資料
+async function notionQueryAll(dbId){
+  let results = [];
+  let cursor = undefined;
+  while(true){
+    const body = { page_size: 100 };
+    if(cursor) body.start_cursor = cursor;
+    const res = await notionRequest('POST', `/v1/databases/${dbId}/query`, body);
+    if(!res) break;
+    results = results.concat(res.results||[]);
+    if(!res.has_more) break;
+    cursor = res.next_cursor;
+  }
+  return results;
+}
+
 // 讀取所有資料
 async function notionPullAll(){
   const token = getNotionToken(); if(!token) return;
   toast('讀取中…');
 
   // 讀場次清單
-  const sessRes = await notionRequest('POST', `/v1/databases/${NOTION_DB.sessions}/query`, {page_size:100});
-  if(sessRes && sessRes.results){
-    S.sessions = sessRes.results.map(r=>({
+  const sessResults = await notionQueryAll(NOTION_DB.sessions);
+  if(sessResults.length){
+    S.sessions = sessResults.map(r=>({
       id:   r.id,
       name: r.properties['場次名稱']?.title?.[0]?.plain_text||''
     })).filter(s=>s.name);
-    renderSessionList(); updateSessionBar();
+    updateSessionBar();
   }
 
   // 讀客戶名單
-  const custRes = await notionRequest('POST', `/v1/databases/${NOTION_DB.customers}/query`, {page_size:100});
-  if(custRes && custRes.results){
-    S.customers = custRes.results.map(r=>({
+  const custResults = await notionQueryAll(NOTION_DB.customers);
+  if(custResults.length){
+    S.customers = custResults.map(r=>({
       name: r.properties['姓名']?.title?.[0]?.plain_text||'',
       id:   r.properties['編號']?.rich_text?.[0]?.plain_text||''
     })).filter(c=>c.name);
@@ -2427,9 +2443,9 @@ async function notionPullAll(){
   }
 
   // 讀商品清單
-  const prodRes = await notionRequest('POST', `/v1/databases/${NOTION_DB.products}/query`, {page_size:100});
-  if(prodRes && prodRes.results){
-    S.products = prodRes.results.map(r=>({
+  const prodResults = await notionQueryAll(NOTION_DB.products);
+  if(prodResults.length){
+    S.products = prodResults.map(r=>({
       name:  r.properties['商品名稱']?.title?.[0]?.plain_text||'',
       cat:   r.properties['類別']?.rich_text?.[0]?.plain_text||'',
       price: r.properties['價格']?.number||''
@@ -2438,9 +2454,9 @@ async function notionPullAll(){
   }
 
   // 讀訂單
-  const orderRes = await notionRequest('POST', `/v1/databases/${NOTION_DB.orders}/query`, {page_size:100});
-  if(orderRes && orderRes.results){
-    S.myOrders = orderRes.results.map(r=>({
+  const orderResults = await notionQueryAll(NOTION_DB.orders);
+  if(orderResults.length){
+    S.myOrders = orderResults.map(r=>({
       product:    r.properties['商品名稱']?.title?.[0]?.plain_text||'',
       customer:   r.properties['客戶名稱']?.rich_text?.[0]?.plain_text||'',
       customerId: r.properties['客戶編號']?.rich_text?.[0]?.plain_text||'',
@@ -2449,7 +2465,8 @@ async function notionPullAll(){
       price:      r.properties['價錢']?.number||0,
       note:       r.properties['單項備註']?.rich_text?.[0]?.plain_text||'',
       orderNote:  r.properties['整筆備註']?.rich_text?.[0]?.plain_text||'',
-      time:       r.properties['入單時間']?.rich_text?.[0]?.plain_text||''
+      time:       r.properties['入單時間']?.rich_text?.[0]?.plain_text||'',
+      session:    r.properties['場次']?.rich_text?.[0]?.plain_text||''
     })).filter(o=>o.product&&o.customer);
     renderMyOrders(); updateBadge();
   }
