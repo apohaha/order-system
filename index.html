@@ -2494,7 +2494,8 @@ async function notionPullAll(){
       note:       r.properties['單項備註']?.rich_text?.[0]?.plain_text||'',
       orderNote:  r.properties['整筆備註']?.rich_text?.[0]?.plain_text||'',
       time:       r.properties['入單時間']?.rich_text?.[0]?.plain_text||'',
-      session:    r.properties['場次']?.rich_text?.[0]?.plain_text||''
+      session:    r.properties['場次']?.rich_text?.[0]?.plain_text||'',
+      orderId:    r.properties['訂單ID']?.rich_text?.[0]?.plain_text||''
     })).filter(o=>o.product&&o.customer);
     renderMyOrders(); updateBadge();
   }
