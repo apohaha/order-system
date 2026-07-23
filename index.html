@@ -586,14 +586,6 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
           <button onclick="notionPushOrders()" style="padding:14px;border:none;border-right:.5px solid var(--border);background:var(--accent-bg);color:var(--accent);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">
             ↑ 推送訂單
           </button>
-          <button onclick="notionPushCustomers()" style="padding:14px;border:none;background:var(--green-bg);color:var(--green-dark);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">
-            ↑ 推送客戶名單
-          </button>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:.5px solid var(--border)">
-          <button onclick="notionPushProducts()" style="padding:14px;border:none;border-right:.5px solid var(--border);background:var(--orange-bg);color:var(--orange);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">
-            ↑ 推送商品清單
-          </button>
           <button onclick="notionPullAll()" style="padding:14px;border:none;background:var(--bg);color:var(--text2);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">
             ↓ 讀取所有資料
           </button>
@@ -2360,8 +2352,20 @@ async function notionQueryAll(dbId){
 async function notionPushOrders(){
   const token = getNotionToken(); if(!token) return;
   if(!S.myOrders.length){ toast('沒有訂單可推送'); return; }
+
+  // 先確保每筆訂單都有 orderId 並存檔
+  let needSave = false;
+  S.myOrders.forEach(o=>{
+    if(!o.orderId){
+      o.orderId = `${Date.now()}-${Math.random().toString(36).substr(2,8)}`;
+      needSave = true;
+    }
+  });
+  if(needSave) save();
+
   toast('檢查重複中…');
 
+  // 讀取 Notion 已有的 orderId
   const existing = await notionQueryAll(NOTION_DB.orders);
   const existingIds = new Set(
     existing.map(r=>r.properties['訂單ID']?.rich_text?.[0]?.plain_text||'').filter(Boolean)
@@ -2369,7 +2373,6 @@ async function notionPushOrders(){
 
   let ok=0, skip=0, fail=0;
   for(const o of S.myOrders){
-    if(!o.orderId) o.orderId = `${Date.now()}-${Math.random().toString(36).substr(2,6)}`;
     if(existingIds.has(o.orderId)){ skip++; continue; }
     const body = {
       parent:{ database_id: NOTION_DB.orders },
