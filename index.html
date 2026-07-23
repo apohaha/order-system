@@ -2252,16 +2252,35 @@ function renderSessionList(){
     </div>`).join('');
 }
 
-function addSession(){
+async function addSession(){
   const name = document.getElementById('new-session-name').value.trim();
   if(!name){ toast('請填入場次名稱'); return; }
   if(!S.sessions) S.sessions=[];
+
+  // Write to Notion
+  const token = document.getElementById('notion-token')?.value?.trim();
+  if(token){
+    toast('新增中…');
+    const body = {
+      parent:{ database_id: NOTION_DB.sessions },
+      properties:{ '場次名稱':{ title:[{ text:{ content: name } }] } }
+    };
+    const res = await notionRequest('POST', '/v1/pages', body);
+    if(res && res.id){
+      S.sessions.push({id: res.id, name});
+      if(S.sessions.length===1){ S.currentSession=res.id; updateSessionBar(); }
+      document.getElementById('new-session-name').value='';
+      save(); renderSessionList(); toast(`✓ 已新增「${name}」`);
+      return;
+    }
+  }
+
+  // Fallback: local only
   const id = Date.now().toString();
   S.sessions.push({id, name});
-  // auto select if first
   if(S.sessions.length===1){ S.currentSession=id; updateSessionBar(); }
   document.getElementById('new-session-name').value='';
-  save(); renderSessionList(); toast(`✓ 已新增「${name}」`);
+  save(); renderSessionList(); toast(`✓ 已新增「${name}」（僅本機）`);
 }
 
 function deleteSession(i){
@@ -2315,7 +2334,8 @@ const NOTION_WORKER = 'https://notion-api-proxy.eatapo.workers.dev';
 const NOTION_DB = {
   orders:    '3a691cc8-9899-806f-9ca1-fae7bcaba5d6',
   customers: '3a691cc8-9899-8022-98fb-e170a69b903c',
-  products:  '3a591cc8-9899-80fc-a360-d17bb4205338'
+  products:  '3a591cc8-9899-80fc-a360-d17bb4205338',
+  sessions:  '3a691cc8-9899-8006-8cbe-fd3aa93a7c91'
 };
 
 function getNotionToken(){
@@ -2428,6 +2448,16 @@ async function notionPushProducts(){
 async function notionPullAll(){
   const token = getNotionToken(); if(!token) return;
   toast('讀取中…');
+
+  // 讀場次清單
+  const sessRes = await notionRequest('POST', `/v1/databases/${NOTION_DB.sessions}/query`, {page_size:100});
+  if(sessRes && sessRes.results){
+    S.sessions = sessRes.results.map(r=>({
+      id:   r.id,
+      name: r.properties['場次名稱']?.title?.[0]?.plain_text||''
+    })).filter(s=>s.name);
+    renderSessionList(); updateSessionBar();
+  }
 
   // 讀客戶名單
   const custRes = await notionRequest('POST', `/v1/databases/${NOTION_DB.customers}/query`, {page_size:100});
