@@ -830,7 +830,7 @@ function switchScreen(name){
   document.getElementById('screen-'+name).classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='orders'){ renderMyOrders(); }
-  if(name==='merge'){ renderMerge(); const at=document.querySelector('#mtab-stats.active'); if(at) renderStatsByCat(); }
+  if(name==='merge'){ renderMerge(); }
   if(name==='manage'){ renderCustList(); renderProdList(); }
   if(name==='enter'){ rebuildAllCatSelects(); updateBadge(); }
 }
@@ -1198,7 +1198,7 @@ function deleteRecentItem(mIdx){
 
 // ════════════════════════════ MY ORDERS ════════════════════════════
 function switchMergeTab(tab){
-  document.querySelectorAll('#mtab-merge,#mtab-stats').forEach(t=>t.classList.remove('active'));
+  // tabs removed
   document.querySelectorAll('#mpanel-merge,#mpanel-stats').forEach(p=>p.style.display='none');
   document.getElementById('mtab-'+tab).classList.add('active');
   document.getElementById('mpanel-'+tab).style.display='block';
@@ -1307,7 +1307,7 @@ function exportMyJSON(){
 function renderStatsByCat(){
   const orders = getMergedOrders();
   const boxEl = document.getElementById('stat-summary-boxes');
-  const catEl = document.getElementById('stat-by-cat');
+  const catEl = null; // removed
 
   if(!orders.length){
     boxEl.innerHTML='';
@@ -1363,10 +1363,10 @@ function syncMyOrders(){
     S.mergeSources.push({label, orders: snapshot});
   }
   // uncheck "include mine" to avoid double counting
-  document.getElementById('include-mine').checked = false;
+  // include-mine removed
   save(); renderMerge();
   const n = snapshot.length;
-  document.getElementById('sync-status').textContent = `已同步 ${n} 筆（${new Date().toLocaleTimeString('zh-TW',{hour12:false})}）`;
+  // sync-status removed
   toast(`✓ 已同步 ${n} 筆入單資料`);
 }
 
@@ -1382,7 +1382,7 @@ function removeMergeSrc(i){ S.mergeSources.splice(i,1); save(); renderMerge(); }
 
 function getMergedOrders(){
   let all=[...S.mergeSources.flatMap(s=>s.orders)];
-  if(document.getElementById('include-mine').checked) all=[...S.myOrders,...all];
+  // include-mine removed
   return all;
 }
 
@@ -1394,7 +1394,7 @@ function buildSummary(orders){
 
 function renderMerge(){
   // Sources
-  const srcEl=document.getElementById('merge-sources-list');
+  // merge-sources-list removed
   srcEl.innerHTML=S.mergeSources.length
     ? S.mergeSources.map((s,i)=>{
         const custCount=new Set(s.orders.map(o=>o.customer)).size;
@@ -1410,11 +1410,7 @@ function renderMerge(){
   const totalQty=all.reduce((a,o)=>a+(o.qty||0),0);
   const sum=buildSummary(all);
 
-  document.getElementById('merge-stats-row').innerHTML=`
-    <div class="stat-box"><div class="st-label">總筆數</div><div class="st-val">${all.length}</div></div>
-    <div class="stat-box"><div class="st-label">總數量</div><div class="st-val">${totalQty}</div></div>
-    <div class="stat-box"><div class="st-label">商品種類</div><div class="st-val">${sum.length}</div></div>
-    <div class="stat-box"><div class="st-label">客戶人數</div><div class="st-val">${custs}</div></div>`;
+  // stats row removed (now in stat-summary-boxes)
 
   const prevWrap=document.getElementById('merge-preview-wrap');
   if(!all.length){ prevWrap.style.display='none'; return; }
@@ -1468,7 +1464,7 @@ function renderMerge(){
   }).join('');
 
   // refresh stats tab if visible
-  if(document.getElementById('mtab-stats')&&document.getElementById('mtab-stats').classList.contains('active')) renderStatsByCat();
+  // mtab-stats removed
 }
 
 // ════════════════════════════ EXCEL ════════════════════════════
@@ -2363,6 +2359,9 @@ async function notionPushOrders(){
   const existingIds = new Set(
     existing.map(r=>r.properties['訂單ID']?.rich_text?.[0]?.plain_text||'').filter(Boolean)
   );
+
+  // Debug: 顯示讀到幾筆
+  toast(`Notion 共 ${existing.length} 筆，有ID ${existingIds.size} 筆，本機 ${S.myOrders.length} 筆`);
 
   let ok=0, skip=0, fail=0;
   for(const o of S.myOrders){
