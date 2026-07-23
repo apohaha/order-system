@@ -393,6 +393,17 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
       <button class="nav-action" onclick="resetForm()">清除</button>
     </div>
 
+    <!-- 場次選擇 -->
+    <div id="session-bar" style="background:var(--accent);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+        <span style="font-size:12px;color:rgba(255,255,255,0.8);flex-shrink:0">目前場次</span>
+        <span id="session-name" style="font-size:14px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          未選擇場次
+        </span>
+      </div>
+      <button onclick="openSessionPicker()" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;padding:5px 10px;font-size:12px;color:#fff;font-weight:600;font-family:inherit;cursor:pointer;flex-shrink:0">切換</button>
+    </div>
+
     <div class="section">
       <!-- Customer -->
       <div class="section-title">客戶</div>
@@ -559,6 +570,47 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
         </div>
       </div>
 
+      <!-- 場次管理 -->
+      <div class="section-title">場次管理</div>
+      <div class="group" style="margin-bottom:16px">
+        <div style="padding:8px 14px 4px;font-size:12px;font-weight:600;color:var(--text3);background:var(--bg);border-bottom:.5px solid var(--border)">新增場次</div>
+        <div style="display:flex;gap:8px;padding:12px 14px;border-bottom:.5px solid var(--border)">
+          <input type="text" id="new-session-name" placeholder="例：泰國採購 2026" style="flex:1;border:.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:14px;font-family:inherit;outline:none;background:var(--bg)" />
+          <button onclick="addSession()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);padding:9px 14px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">新增</button>
+        </div>
+        <div id="session-list"></div>
+      </div>
+
+      <!-- Notion 同步 -->
+      <div class="section-title">Notion 同步</div>
+      <div class="group" style="margin-bottom:16px">
+        <div style="padding:14px 16px;border-bottom:.5px solid var(--border)">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:5px;font-weight:600">Notion Integration Token</div>
+          <input type="password" id="notion-token" placeholder="secret_xxxxxxxxx"
+            oninput="saveNotionSettings()"
+            style="width:100%;border:.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:14px;font-family:monospace;outline:none;background:var(--bg)" />
+        </div>
+        <div style="padding:12px 14px;border-bottom:.5px solid var(--border)">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:2px">Token 存在你自己的瀏覽器，不會上傳或外洩</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+          <button onclick="notionPushOrders()" style="padding:14px;border:none;border-right:.5px solid var(--border);background:var(--accent-bg);color:var(--accent);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">
+            ↑ 推送訂單
+          </button>
+          <button onclick="notionPushCustomers()" style="padding:14px;border:none;background:var(--green-bg);color:var(--green-dark);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">
+            ↑ 推送客戶名單
+          </button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:.5px solid var(--border)">
+          <button onclick="notionPushProducts()" style="padding:14px;border:none;border-right:.5px solid var(--border);background:var(--orange-bg);color:var(--orange);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">
+            ↑ 推送商品清單
+          </button>
+          <button onclick="notionPullAll()" style="padding:14px;border:none;background:var(--bg);color:var(--text2);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">
+            ↓ 讀取所有資料
+          </button>
+        </div>
+      </div>
+
       <!-- Config export/import -->
       <div class="section-title">設定檔</div>
       <div class="notice" style="margin-bottom:10px">
@@ -600,8 +652,8 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
             <div style="display:flex;gap:8px" onclick="event.stopPropagation()">
               <button class="nav-action" style="font-size:14px" onclick="showListCopyModal('cust')">匯出</button>
               <button class="nav-action" style="font-size:14px" onclick="openAddCustomer()">＋ 新增</button>
-              <button class="nav-action" style="font-size:14px" onclick="document.getElementById('csv-upload').click()">CSV</button>
-              <input type="file" id="csv-upload" accept=".csv" style="display:none" onchange="handleCSV(event)" />
+              <button class="nav-action" style="font-size:14px" onclick="document.getElementById('cust-file-upload').click()">匯入</button>
+              <input type="file" id="cust-file-upload" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleCustFile(event)" />
             </div>
             <span id="cust-chevron" style="font-size:12px;color:var(--text3);transition:transform 0.2s">▼</span>
           </div>
@@ -739,6 +791,18 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
   </div>
 </div>
 
+<!-- ── Session Picker Modal ── -->
+<div class="modal-overlay" id="modal-session-picker" onclick="closeModal('modal-session-picker')">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">選擇場次</div>
+    <div id="session-picker-list"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('modal-session-picker')">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Edit full customer order modal ── -->
 <div class="modal-overlay" id="modal-edit-order" onclick="closeModal('modal-edit-order')">
   <div class="modal-sheet" onclick="event.stopPropagation()" style="max-height:90dvh;overflow-y:auto">
@@ -813,7 +877,7 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
 
 <script>
 // ════════════════════════════ STATE ════════════════════════════
-let S = { customers:[], products:[], myOrders:[], mergeSources:[] };
+let S = { customers:[], products:[], myOrders:[], mergeSources:[], sessions:[], currentSession:'' };
 (()=>{ try{ const s=localStorage.getItem('oss_v4'); if(s) Object.assign(S,JSON.parse(s)); }catch(e){} })();
 ['customers','products','myOrders','mergeSources'].forEach(k=>{ if(!Array.isArray(S[k])) S[k]=[]; });
 
@@ -1128,7 +1192,7 @@ function submitOrder(){
   const custObj=S.customers.find(c=>c.name===customer||c.id===customer);
   const finalId=custObj?custObj.id:customerId;
   items.forEach(item=>{
-    S.myOrders.push({customer:custObj?custObj.name:customer, customerId:finalId, product:item.product,qty:item.qty,price:item.price,cat:item.cat,note:item.note,orderNote:note,time});
+    S.myOrders.push({customer:custObj?custObj.name:customer, customerId:finalId, product:item.product,qty:item.qty,price:item.price,cat:item.cat,note:item.note,orderNote:note,time,session:getCurrentSessionName()});
   });
   save(); updateBadge(); renderRecent(); resetForm();
   toast(`✓ ${custObj?custObj.name:customer} — 已新增 ${items.length} 項`);
@@ -1644,20 +1708,57 @@ function deleteEditCustomer(){
     closeModal('modal-edit-customer'); renderCustList(); toast('已刪除');
   });
 }
-function handleCSV(e){
+function handleCustFile(e){
   const file=e.target.files[0]; if(!file) return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    let added=0;
-    ev.target.result.split('\n').filter(l=>l.trim()).forEach(line=>{
-      const p=line.split(',').map(s=>s.trim().replace(/^"|"$/g,''));
-      if(p.length>=2&&p[0]&&p[1]&&!S.customers.some(c=>c.id===p[0])){
-        S.customers.push({id:p[0],name:p[1]}); added++;
-      }
-    });
-    save(); renderCustList(); toast(`✓ 匯入 ${added} 位客戶`);
-  };
-  r.readAsText(file,'UTF-8'); e.target.value='';
+  e.target.value='';
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if(ext==='xlsx'||ext==='xls'){
+    // Excel 格式
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const wb=XLSX.read(ev.target.result,{type:'binary'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+        let added=0;
+        rows.forEach(row=>{
+          // 支援：第一欄=編號，第二欄=名稱
+          // 或：有標題列（自動跳過非資料列）
+          const id   = String(row[0]||'').trim();
+          const name = String(row[1]||'').trim();
+          if(!id&&!name) return;
+          if(!name) return; // 至少要有名稱
+          // 跳過標題列（編號欄是「編號」「id」等文字）
+          if(['編號','id','客戶編號','no'].includes(id.toLowerCase())) return;
+          if(!S.customers.some(c=>c.id===id&&id||c.name===name)){
+            S.customers.push({id,name}); added++;
+          }
+        });
+        save(); renderCustList();
+        toast(`✓ 匯入 ${added} 位客戶`);
+      }catch(err){ toast('讀取 Excel 失敗'); console.error(err); }
+    };
+    reader.readAsBinaryString(file);
+
+  } else {
+    // CSV 格式（原本邏輯）
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      let added=0;
+      ev.target.result.split('\n').filter(l=>l.trim()).forEach(line=>{
+        const p=line.split(',').map(s=>s.trim().replace(/^"|"$/g,''));
+        const id=p[0]||'', name=p[1]||'';
+        if(!name) return;
+        if(['編號','id','客戶編號'].includes(id.toLowerCase())) return;
+        if(!S.customers.some(c=>c.id===id&&id||c.name===name)){
+          S.customers.push({id,name}); added++;
+        }
+      });
+      save(); renderCustList(); toast(`✓ 匯入 ${added} 位客戶`);
+    };
+    reader.readAsText(file,'UTF-8');
+  }
 }
 
 // ════════════════════════════ PRODUCTS ════════════════════════════
@@ -2132,11 +2233,248 @@ function clearAllData(){
   });
 }
 
+// ════════════════════════════ SESSION MANAGEMENT ════════════════════════════
+// S.sessions = [{id, name}], S.currentSession = id
+
+function renderSessionList(){
+  const el = document.getElementById('session-list');
+  if(!S.sessions||!S.sessions.length){
+    el.innerHTML='<div style="padding:12px 14px;font-size:13px;color:var(--text3)">尚無場次，請先新增</div>';
+    return;
+  }
+  el.innerHTML = S.sessions.map((s,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px">
+        ${s.id===S.currentSession?`<span style="width:8px;height:8px;background:var(--accent);border-radius:50%;display:inline-block"></span>`:`<span style="width:8px;height:8px;background:var(--border2);border-radius:50%;display:inline-block"></span>`}
+        <span style="font-size:14px;font-weight:${s.id===S.currentSession?'600':'400'}">${s.name}</span>
+      </div>
+      <button onclick="deleteSession(${i})" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 4px">×</button>
+    </div>`).join('');
+}
+
+function addSession(){
+  const name = document.getElementById('new-session-name').value.trim();
+  if(!name){ toast('請填入場次名稱'); return; }
+  if(!S.sessions) S.sessions=[];
+  const id = Date.now().toString();
+  S.sessions.push({id, name});
+  // auto select if first
+  if(S.sessions.length===1){ S.currentSession=id; updateSessionBar(); }
+  document.getElementById('new-session-name').value='';
+  save(); renderSessionList(); toast(`✓ 已新增「${name}」`);
+}
+
+function deleteSession(i){
+  const name = S.sessions[i]?.name||'';
+  showConfirm(`確定刪除場次「${name}」？\n（不會刪除該場次的訂單）`, ()=>{
+    if(S.sessions[i].id===S.currentSession){
+      S.currentSession = S.sessions[0]?.id||'';
+    }
+    S.sessions.splice(i,1);
+    save(); renderSessionList(); updateSessionBar();
+    toast('已刪除');
+  });
+}
+
+function openSessionPicker(){
+  const el = document.getElementById('session-picker-list');
+  if(!S.sessions||!S.sessions.length){
+    el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3)">請先到資料管理新增場次</div>';
+  } else {
+    el.innerHTML = S.sessions.map(s=>`
+      <div onclick="selectSession('${s.id}')" style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:.5px solid var(--border);cursor:pointer">
+        <span style="font-size:16px">${s.id===S.currentSession?'✅':'⬜'}</span>
+        <span style="font-size:15px;font-weight:${s.id===S.currentSession?'600':'400'}">${s.name}</span>
+      </div>`).join('');
+  }
+  openModal('modal-session-picker');
+}
+
+function selectSession(id){
+  S.currentSession = id;
+  save(); updateSessionBar();
+  closeModal('modal-session-picker');
+  const name = S.sessions.find(s=>s.id===id)?.name||'';
+  toast(`✓ 已切換到「${name}」`);
+}
+
+function updateSessionBar(){
+  const name = S.sessions?.find(s=>s.id===S.currentSession)?.name||'未選擇場次';
+  const el = document.getElementById('session-name');
+  if(el) el.textContent = name;
+  const bar = document.getElementById('session-bar');
+  if(bar) bar.style.background = S.currentSession ? 'var(--accent)' : 'var(--text3)';
+}
+
+function getCurrentSessionName(){
+  return S.sessions?.find(s=>s.id===S.currentSession)?.name||'';
+}
+
+// ════════════════════════════ NOTION SYNC ════════════════════════════
+const NOTION_WORKER = 'https://notion-api-proxy.eatapo.workers.dev';
+const NOTION_DB = {
+  orders:    '3a691cc8-9899-806f-9ca1-fae7bcaba5d6',
+  customers: '3a691cc8-9899-8022-98fb-e170a69b903c',
+  products:  '3a591cc8-9899-80fc-a360-d17bb4205338'
+};
+
+function getNotionToken(){
+  const t = document.getElementById('notion-token')?.value?.trim();
+  if(!t){ toast('請先填入 Notion Token'); return null; }
+  return t;
+}
+
+function saveNotionSettings(){
+  const t = document.getElementById('notion-token')?.value?.trim();
+  try{ localStorage.setItem('notion_token', t); }catch(e){}
+}
+
+function loadNotionSettings(){
+  try{
+    const t = localStorage.getItem('notion_token');
+    const el = document.getElementById('notion-token');
+    if(t && el) el.value = t;
+  }catch(e){}
+}
+
+async function notionRequest(method, path, body){
+  const token = getNotionToken(); if(!token) return null;
+  try{
+    const res = await fetch(NOTION_WORKER + path, {
+      method,
+      headers:{ 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const data = await res.json();
+    if(!res.ok){
+      const msg = data.message || data.code || JSON.stringify(data);
+      alert('Notion 錯誤 ' + res.status + ':\n' + msg);
+      return null;
+    }
+    return data;
+  }catch(err){ alert('網路錯誤：' + err.message); return null; }
+}
+
+// 推送訂單
+async function notionPushOrders(){
+  const token = getNotionToken(); if(!token) return;
+  if(!S.myOrders.length){ toast('沒有訂單可推送'); return; }
+  toast('推送中…');
+  let ok=0, fail=0;
+  for(const o of S.myOrders){
+    const body = {
+      parent:{ database_id: NOTION_DB.orders },
+      properties:{
+        '商品名稱':{ title:[{ text:{ content: o.product||'' } }] },
+        '客戶名稱':{ rich_text:[{ text:{ content: o.customer||'' } }] },
+        '客戶編號':{ rich_text:[{ text:{ content: o.customerId||'' } }] },
+        '類別':    { rich_text:[{ text:{ content: o.cat||'' } }] },
+        '數量':    { number: o.qty||0 },
+        '價錢':    { number: o.price||0 },
+        '單項備註':{ rich_text:[{ text:{ content: o.note||'' } }] },
+        '整筆備註':{ rich_text:[{ text:{ content: o.orderNote||'' } }] },
+        '場次':    { rich_text:[{ text:{ content: o.session||'' } }] },
+      }
+    };
+    const res = await notionRequest('POST', '/v1/pages', body);
+    if(res && res.id) ok++; else fail++;
+  }
+  toast(`✓ 推送完成：${ok} 筆成功${fail?'，'+fail+' 筆失敗':''}`);
+}
+
+// 推送客戶名單
+async function notionPushCustomers(){
+  const token = getNotionToken(); if(!token) return;
+  if(!S.customers.length){ toast('沒有客戶可推送'); return; }
+  toast('推送客戶名單中…');
+  let ok=0, fail=0;
+  for(const c of S.customers){
+    const body = {
+      parent:{ database_id: NOTION_DB.customers },
+      properties:{
+        '姓名':{ title:[{ text:{ content: c.name||'' } }] },
+        '編號':{ rich_text:[{ text:{ content: c.id||'' } }] },
+      }
+    };
+    const res = await notionRequest('POST', '/v1/pages', body);
+    if(res && res.id) ok++; else fail++;
+  }
+  toast(`✓ 客戶推送完成：${ok} 筆${fail?'，'+fail+' 筆失敗':''}`);
+}
+
+// 推送商品清單
+async function notionPushProducts(){
+  const token = getNotionToken(); if(!token) return;
+  if(!S.products.length){ toast('沒有商品可推送'); return; }
+  toast('推送商品清單中…');
+  let ok=0, fail=0;
+  for(const p of S.products){
+    const body = {
+      parent:{ database_id: NOTION_DB.products },
+      properties:{
+        '商品名稱':{ title:[{ text:{ content: p.name||'' } }] },
+        '類別':    { rich_text:[{ text:{ content: p.cat||'' } }] },
+        '價格':    { number: parseFloat(p.price)||0 },
+      }
+    };
+    const res = await notionRequest('POST', '/v1/pages', body);
+    if(res && res.id) ok++; else fail++;
+  }
+  toast(`✓ 商品推送完成：${ok} 筆${fail?'，'+fail+' 筆失敗':''}`);
+}
+
+// 讀取所有資料
+async function notionPullAll(){
+  const token = getNotionToken(); if(!token) return;
+  toast('讀取中…');
+
+  // 讀客戶名單
+  const custRes = await notionRequest('POST', `/v1/databases/${NOTION_DB.customers}/query`, {page_size:100});
+  if(custRes && custRes.results){
+    S.customers = custRes.results.map(r=>({
+      name: r.properties['姓名']?.title?.[0]?.plain_text||'',
+      id:   r.properties['編號']?.rich_text?.[0]?.plain_text||''
+    })).filter(c=>c.name);
+    renderCustList();
+  }
+
+  // 讀商品清單
+  const prodRes = await notionRequest('POST', `/v1/databases/${NOTION_DB.products}/query`, {page_size:100});
+  if(prodRes && prodRes.results){
+    S.products = prodRes.results.map(r=>({
+      name:  r.properties['商品名稱']?.title?.[0]?.plain_text||'',
+      cat:   r.properties['類別']?.rich_text?.[0]?.plain_text||'',
+      price: r.properties['價格']?.number||''
+    })).filter(p=>p.name);
+    renderProdList(); rebuildAllCatSelects();
+  }
+
+  // 讀訂單
+  const orderRes = await notionRequest('POST', `/v1/databases/${NOTION_DB.orders}/query`, {page_size:100});
+  if(orderRes && orderRes.results){
+    S.myOrders = orderRes.results.map(r=>({
+      product:    r.properties['商品名稱']?.title?.[0]?.plain_text||'',
+      customer:   r.properties['客戶名稱']?.rich_text?.[0]?.plain_text||'',
+      customerId: r.properties['客戶編號']?.rich_text?.[0]?.plain_text||'',
+      cat:        r.properties['類別']?.rich_text?.[0]?.plain_text||'',
+      qty:        r.properties['數量']?.number||0,
+      price:      r.properties['價錢']?.number||0,
+      note:       r.properties['單項備註']?.rich_text?.[0]?.plain_text||'',
+      orderNote:  r.properties['整筆備註']?.rich_text?.[0]?.plain_text||'',
+      time:       r.properties['入單時間']?.rich_text?.[0]?.plain_text||''
+    })).filter(o=>o.product&&o.customer);
+    renderMyOrders(); updateBadge();
+  }
+
+  save();
+  toast(`✓ 讀取完成：${S.customers.length} 位客戶・${S.products.length} 件商品・${S.myOrders.length} 筆訂單`);
+}
+
 // ════════════════════════════ INIT ════════════════════════════
 // Set default handlers for edit order modal buttons
 document.getElementById('edit-order-save-btn').onclick = saveFullOrder;
 document.getElementById('edit-order-del-btn').onclick = deleteCustomerOrders;
-updateBadge(); renderRecent(); addRow();
+updateBadge(); renderRecent(); addRow(); loadNotionSettings(); renderSessionList(); updateSessionBar();
 </script>
 </body>
 </html>
