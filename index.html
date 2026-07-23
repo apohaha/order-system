@@ -2356,12 +2356,11 @@ async function notionPushOrders(){
 
   // 讀取 Notion 已有的 orderId
   const existing = await notionQueryAll(NOTION_DB.orders);
+  alert(`讀到 ${existing.length} 筆 Notion 訂單`);
   const existingIds = new Set(
     existing.map(r=>r.properties['訂單ID']?.rich_text?.[0]?.plain_text||'').filter(Boolean)
   );
-
-  // Debug: 顯示讀到幾筆
-  toast(`Notion 共 ${existing.length} 筆，有ID ${existingIds.size} 筆，本機 ${S.myOrders.length} 筆`);
+  alert(`其中有訂單ID的：${existingIds.size} 筆\n本機訂單：${S.myOrders.length} 筆\n本機有orderId：${S.myOrders.filter(o=>o.orderId).length} 筆`);
 
   let ok=0, skip=0, fail=0;
   for(const o of S.myOrders){
