@@ -570,17 +570,6 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
         </div>
       </div>
 
-      <!-- 場次管理 -->
-      <div class="section-title">場次管理</div>
-      <div class="group" style="margin-bottom:16px">
-        <div style="padding:8px 14px 4px;font-size:12px;font-weight:600;color:var(--text3);background:var(--bg);border-bottom:.5px solid var(--border)">新增場次</div>
-        <div style="display:flex;gap:8px;padding:12px 14px;border-bottom:.5px solid var(--border)">
-          <input type="text" id="new-session-name" placeholder="例：泰國採購 2026" style="flex:1;border:.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:14px;font-family:inherit;outline:none;background:var(--bg)" />
-          <button onclick="addSession()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);padding:9px 14px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">新增</button>
-        </div>
-        <div id="session-list"></div>
-      </div>
-
       <!-- Notion 同步 -->
       <div class="section-title">Notion 同步</div>
       <div class="group" style="margin-bottom:16px">
@@ -2236,77 +2225,45 @@ function clearAllData(){
 // ════════════════════════════ SESSION MANAGEMENT ════════════════════════════
 // S.sessions = [{id, name}], S.currentSession = id
 
-function renderSessionList(){
-  const el = document.getElementById('session-list');
-  if(!S.sessions||!S.sessions.length){
-    el.innerHTML='<div style="padding:12px 14px;font-size:13px;color:var(--text3)">尚無場次，請先新增</div>';
+async function openSessionPicker(){
+  const el = document.getElementById('session-picker-list');
+  el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3)">載入中…</div>';
+  openModal('modal-session-picker');
+
+  const token = document.getElementById('notion-token')?.value?.trim();
+  if(!token){
+    el.innerHTML='<div style="padding:16px;text-align:center;color:var(--red)">請先到「資料管理」填入 Notion Token</div>';
     return;
   }
-  el.innerHTML = S.sessions.map((s,i)=>`
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:.5px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:8px">
-        ${s.id===S.currentSession?`<span style="width:8px;height:8px;background:var(--accent);border-radius:50%;display:inline-block"></span>`:`<span style="width:8px;height:8px;background:var(--border2);border-radius:50%;display:inline-block"></span>`}
-        <span style="font-size:14px;font-weight:${s.id===S.currentSession?'600':'400'}">${s.name}</span>
-      </div>
-      <button onclick="deleteSession(${i})" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 4px">×</button>
+
+  const res = await notionRequest('POST', `/v1/databases/${NOTION_DB.sessions}/query`, {page_size:100});
+  
+  if(!res){
+    el.innerHTML='<div style="padding:16px;color:var(--red)">讀取失敗，請確認 Token 和 Notion 連線</div>';
+    return;
+  }
+
+  if(!res.results||!res.results.length){
+    el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3)">場次清單是空的，請先在 Notion 新增場次</div>';
+    return;
+  }
+
+  S.sessions = res.results.map(r=>({
+    id:   r.id,
+    name: r.properties['場次名稱']?.title?.[0]?.plain_text||''
+  })).filter(s=>s.name);
+  save();
+
+  if(!S.sessions.length){
+    el.innerHTML='<div style="padding:16px;color:var(--red)">讀到資料但欄位名稱不符，請確認欄位名稱是「場次名稱」</div>';
+    return;
+  }
+
+  el.innerHTML = S.sessions.map(s=>`
+    <div onclick="selectSession('${s.id}')" style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:.5px solid var(--border);cursor:pointer">
+      <span style="font-size:16px">${s.id===S.currentSession?'✅':'⬜'}</span>
+      <span style="font-size:15px;font-weight:${s.id===S.currentSession?'600':'400'}">${s.name}</span>
     </div>`).join('');
-}
-
-async function addSession(){
-  const name = document.getElementById('new-session-name').value.trim();
-  if(!name){ toast('請填入場次名稱'); return; }
-  if(!S.sessions) S.sessions=[];
-
-  // Write to Notion
-  const token = document.getElementById('notion-token')?.value?.trim();
-  if(token){
-    toast('新增中…');
-    const body = {
-      parent:{ database_id: NOTION_DB.sessions },
-      properties:{ '場次名稱':{ title:[{ text:{ content: name } }] } }
-    };
-    const res = await notionRequest('POST', '/v1/pages', body);
-    if(res && res.id){
-      S.sessions.push({id: res.id, name});
-      if(S.sessions.length===1){ S.currentSession=res.id; updateSessionBar(); }
-      document.getElementById('new-session-name').value='';
-      save(); renderSessionList(); toast(`✓ 已新增「${name}」`);
-      return;
-    }
-  }
-
-  // Fallback: local only
-  const id = Date.now().toString();
-  S.sessions.push({id, name});
-  if(S.sessions.length===1){ S.currentSession=id; updateSessionBar(); }
-  document.getElementById('new-session-name').value='';
-  save(); renderSessionList(); toast(`✓ 已新增「${name}」（僅本機）`);
-}
-
-function deleteSession(i){
-  const name = S.sessions[i]?.name||'';
-  showConfirm(`確定刪除場次「${name}」？\n（不會刪除該場次的訂單）`, ()=>{
-    if(S.sessions[i].id===S.currentSession){
-      S.currentSession = S.sessions[0]?.id||'';
-    }
-    S.sessions.splice(i,1);
-    save(); renderSessionList(); updateSessionBar();
-    toast('已刪除');
-  });
-}
-
-function openSessionPicker(){
-  const el = document.getElementById('session-picker-list');
-  if(!S.sessions||!S.sessions.length){
-    el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3)">請先到資料管理新增場次</div>';
-  } else {
-    el.innerHTML = S.sessions.map(s=>`
-      <div onclick="selectSession('${s.id}')" style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:.5px solid var(--border);cursor:pointer">
-        <span style="font-size:16px">${s.id===S.currentSession?'✅':'⬜'}</span>
-        <span style="font-size:15px;font-weight:${s.id===S.currentSession?'600':'400'}">${s.name}</span>
-      </div>`).join('');
-  }
-  openModal('modal-session-picker');
 }
 
 function selectSession(id){
@@ -2505,7 +2462,7 @@ async function notionPullAll(){
 // Set default handlers for edit order modal buttons
 document.getElementById('edit-order-save-btn').onclick = saveFullOrder;
 document.getElementById('edit-order-del-btn').onclick = deleteCustomerOrders;
-updateBadge(); renderRecent(); addRow(); loadNotionSettings(); renderSessionList(); updateSessionBar();
+updateBadge(); renderRecent(); addRow(); loadNotionSettings(); updateSessionBar();
 </script>
 </body>
 </html>
