@@ -538,8 +538,8 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
           <button onclick="notionPushOrders()" style="padding:14px;border:none;border-right:.5px solid var(--border);background:var(--accent-bg);color:var(--accent);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">
             ↑ 推送訂單
           </button>
-          <button onclick="notionPullAll()" style="padding:14px;border:none;background:var(--bg);color:var(--text2);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">
-            ↓ 讀取所有資料
+          <button onclick="notionInitialSetup()" style="padding:14px;border:none;background:var(--green-bg);color:var(--green-dark);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">
+            ⬇ 初始讀取
           </button>
         </div>
       </div>
@@ -549,30 +549,18 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
         </div>
       </div>
 
-      <!-- Config export/import -->
-      <div class="section-title">設定檔</div>
-      <div class="notice" style="margin-bottom:10px">
-        複製設定檔後傳給夥伴，夥伴貼上後即可使用相同的商品清單與客戶名單。
-      </div>
-      <div style="display:flex;gap:10px;margin-bottom:24px">
-        <button class="btn btn-green btn-sm" style="flex:1" onclick="showCopyModal('config')">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-          複製設定檔
-        </button>
-        <button class="btn btn-outline btn-sm" style="flex:1" onclick="showPasteModal('config')">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-          貼上設定檔
-        </button>
-      </div>
-
       <!-- Products -->
       <div class="group" style="margin-bottom:12px">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer" onclick="toggleSection('prod')">
-          <span style="font-weight:600;font-size:15px">商品清單</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-weight:600;font-size:15px">商品清單</span>
+            <a href="https://app.notion.com/p/3a591cc8989980fca360d17bb4205338?v=3a591cc8989980cd84bb000cb64a433f" target="_blank" onclick="event.stopPropagation()" style="color:var(--text3);display:flex;align-items:center" title="在 Notion 開啟">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+          </div>
           <div style="display:flex;align-items:center;gap:12px">
             <div style="display:flex;gap:8px" onclick="event.stopPropagation()">
-              <button class="nav-action" style="font-size:14px" onclick="showListCopyModal('prod')">匯出</button>
-              <button class="nav-action" style="font-size:14px" onclick="openAddProduct()">＋ 新增</button>
+              <button class="nav-action" style="font-size:14px" onclick="notionPullProducts()">↓ 讀取</button>
             </div>
             <span id="prod-chevron" style="font-size:12px;color:var(--text3);transition:transform 0.2s">▼</span>
           </div>
@@ -585,13 +573,15 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
       <!-- Customers -->
       <div class="group" style="margin-bottom:12px">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer" onclick="toggleSection('cust')">
-          <span style="font-weight:600;font-size:15px">客戶名單</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-weight:600;font-size:15px">客戶名單</span>
+            <a href="https://app.notion.com/p/3a691cc89899802298fbe170a69b903c?v=8852d6ea408943c2b79f07681c3d1781" target="_blank" onclick="event.stopPropagation()" style="color:var(--text3);display:flex;align-items:center" title="在 Notion 開啟">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+          </div>
           <div style="display:flex;align-items:center;gap:12px">
             <div style="display:flex;gap:8px" onclick="event.stopPropagation()">
-              <button class="nav-action" style="font-size:14px" onclick="showListCopyModal('cust')">匯出</button>
-              <button class="nav-action" style="font-size:14px" onclick="openAddCustomer()">＋ 新增</button>
-              <button class="nav-action" style="font-size:14px" onclick="document.getElementById('cust-file-upload').click()">匯入</button>
-              <input type="file" id="cust-file-upload" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleCustFile(event)" />
+              <button class="nav-action" style="font-size:14px" onclick="notionPullCustomers()">↓ 讀取</button>
             </div>
             <span id="cust-chevron" style="font-size:12px;color:var(--text3);transition:transform 0.2s">▼</span>
           </div>
@@ -2308,11 +2298,15 @@ function loadNotionSettings(){
 async function notionRequest(method, path, body, silent=false){
   const token = getNotionToken(); if(!token) return null;
   try{
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(), 55000); // 55秒逾時
     const res = await fetch(NOTION_WORKER + path, {
       method,
       headers:{ 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal
     });
+    clearTimeout(timeout);
     const data = await res.json();
     if(!res.ok){
       if(!silent){
@@ -2323,7 +2317,11 @@ async function notionRequest(method, path, body, silent=false){
     }
     return data;
   }catch(err){
-    if(!silent) toast('網路錯誤：' + err.message);
+    if(err.name==='AbortError'){
+      if(!silent) toast('請求逾時，請稍後再試');
+    } else {
+      if(!silent) toast('網路錯誤：' + err.message);
+    }
     return null;
   }
 }
@@ -2347,53 +2345,87 @@ async function notionQueryAll(dbId){
   return results;
 }
 
-// 推送訂單（防重複）
+// 推送訂單（完整同步：新增/更新/標記刪除）
 async function notionPushOrders(){
   const token = getNotionToken(); if(!token) return;
   if(!S.myOrders.length){ toast('沒有訂單可推送'); return; }
 
-  // 先確保每筆訂單都有 orderId 並存檔
+  const dbg = document.getElementById('notion-debug');
+  const log = (msg)=>{ if(dbg) dbg.innerHTML += msg+'<br>'; toast(msg); };
+  if(dbg) dbg.innerHTML = '';
+
+  // 先確保每筆訂單都有穩定的 orderId
   let needSave = false;
   S.myOrders.forEach(o=>{
     if(!o.orderId){
-      o.orderId = `${Date.now()}-${Math.random().toString(36).substr(2,8)}`;
+      const key = `${o.customer}|${o.product}|${o.qty}|${o.time}`;
+      let hash = 0;
+      for(let i=0;i<key.length;i++){ hash=((hash<<5)-hash)+key.charCodeAt(i); hash|=0; }
+      o.orderId = `stable-${Math.abs(hash).toString(36)}`;
       needSave = true;
     }
   });
   if(needSave) save();
 
-  toast('檢查重複中…');
+  log('🔄 開始同步訂單...');
+  log(`本機訂單：${S.myOrders.length} 筆`);
 
-  // 讀取 Notion 已有的 orderId
+  // 讀取 Notion 所有訂單
+  log('讀取 Notion 現有訂單…');
   const existing = await notionQueryAll(NOTION_DB.orders);
-  const existingIds = new Set(
-    existing.map(r=>r.properties['訂單ID']?.rich_text?.[0]?.plain_text||'').filter(Boolean)
-  );
+  log(`Notion 現有：${existing.length} 筆`);
 
-  let ok=0, skip=0, fail=0;
-  for(const o of S.myOrders){
-    if(existingIds.has(o.orderId)){ skip++; continue; }
-    const body = {
-      parent:{ database_id: NOTION_DB.orders },
-      properties:{
-        '商品名稱':{ title:[{ text:{ content: o.product||'' } }] },
-        '客戶名稱':{ rich_text:[{ text:{ content: o.customer||'' } }] },
-        '客戶編號':{ rich_text:[{ text:{ content: o.customerId||'' } }] },
-        '類別':    { rich_text:[{ text:{ content: o.cat||'' } }] },
-        '數量':    { number: o.qty||0 },
-        '價錢':    { number: o.price||0 },
-        '單項備註':{ rich_text:[{ text:{ content: o.note||'' } }] },
-        '整筆備註':{ rich_text:[{ text:{ content: o.orderNote||'' } }] },
-        '場次':    { rich_text:[{ text:{ content: o.session||'' } }] },
-        '入單時間':{ rich_text:[{ text:{ content: o.time||'' } }] },
-        '訂單ID':  { rich_text:[{ text:{ content: o.orderId } }] },
-      }
+  const notionMap = {};
+  existing.forEach(r=>{
+    const oid = r.properties['訂單ID']?.rich_text?.[0]?.plain_text||'';
+    if(oid) notionMap[oid] = {
+      pageId: r.id,
+      deleted: r.properties['已刪除']?.checkbox||false
     };
-    const res = await notionRequest('POST', '/v1/pages', body, true);
-    if(res && res.id) ok++; else fail++;
+  });
+
+  const localIds = new Set(S.myOrders.map(o=>o.orderId));
+  let added=0, updated=0, deleted=0, fail=0;
+
+  // 1. 新增或更新
+  log('新增/更新中…');
+  for(const o of S.myOrders){
+    const props = {
+      '商品名稱':{ title:[{ text:{ content: o.product||'' } }] },
+      '客戶名稱':{ rich_text:[{ text:{ content: o.customer||'' } }] },
+      '客戶編號':{ rich_text:[{ text:{ content: o.customerId||'' } }] },
+      '類別':    { rich_text:[{ text:{ content: o.cat||'' } }] },
+      '數量':    { number: o.qty||0 },
+      '價錢':    { number: o.price||0 },
+      '單項備註':{ rich_text:[{ text:{ content: o.note||'' } }] },
+      '整筆備註':{ rich_text:[{ text:{ content: o.orderNote||'' } }] },
+      '場次':    { rich_text:[{ text:{ content: o.session||'' } }] },
+      '入單時間':{ rich_text:[{ text:{ content: o.time||'' } }] },
+      '訂單ID':  { rich_text:[{ text:{ content: o.orderId } }] },
+      '已刪除':  { checkbox: false },
+    };
+    if(notionMap[o.orderId]){
+      const res = await notionRequest('PATCH', `/v1/pages/${notionMap[o.orderId].pageId}`, { properties: props }, true);
+      if(res) updated++; else fail++;
+    } else {
+      const res = await notionRequest('POST', '/v1/pages', { parent:{ database_id: NOTION_DB.orders }, properties: props }, true);
+      if(res) added++; else fail++;
+    }
   }
+
+  // 2. 標記刪除
+  log('標記已刪除…');
+  for(const [oid, info] of Object.entries(notionMap)){
+    if(!localIds.has(oid) && !info.deleted){
+      const res = await notionRequest('PATCH', `/v1/pages/${info.pageId}`, {
+        properties:{ '已刪除':{ checkbox: true } }
+      }, true);
+      if(res) deleted++; else fail++;
+    }
+  }
+
   save();
-  toast(`✓ 推送完成：${ok} 筆新增，${skip} 筆已存在跳過${fail?'，'+fail+' 筆失敗':''}`);
+  log(`✅ 同步完成！新增 ${added}・更新 ${updated}・標記刪除 ${deleted}${fail?`・失敗 ${fail}`:''}`);
 }
 
 // 推送客戶名單
@@ -2457,14 +2489,18 @@ async function notionPullAll(){
     updateSessionBar();
   }
 
-  // 讀客戶名單
+  // 讀客戶名單（合併，不覆蓋）
   const custResults = await notionQueryAll(NOTION_DB.customers);
   log(`客戶：${custResults.length} 筆`);
   if(custResults.length){
-    S.customers = custResults.map(r=>({
+    const incoming = custResults.map(r=>({
       name: r.properties['姓名']?.title?.[0]?.plain_text||'',
       id:   r.properties['編號']?.rich_text?.[0]?.plain_text||''
     })).filter(c=>c.name);
+    // 合併：本機沒有的才加入
+    const localNames = new Set(S.customers.map(c=>c.name));
+    const newCusts = incoming.filter(c=>!localNames.has(c.name));
+    S.customers = [...S.customers, ...newCusts];
     renderCustList();
   }
 
@@ -2480,11 +2516,11 @@ async function notionPullAll(){
     renderProdList(); rebuildAllCatSelects();
   }
 
-  // 讀訂單
+  // 讀訂單（合併，不覆蓋，用 orderId 去重）
   const orderResults = await notionQueryAll(NOTION_DB.orders);
   log(`訂單：${orderResults.length} 筆`);
   if(orderResults.length){
-    S.myOrders = orderResults.map(r=>({
+    const incoming = orderResults.map(r=>({
       product:    r.properties['商品名稱']?.title?.[0]?.plain_text||'',
       customer:   r.properties['客戶名稱']?.rich_text?.[0]?.plain_text||'',
       customerId: r.properties['客戶編號']?.rich_text?.[0]?.plain_text||'',
@@ -2495,13 +2531,141 @@ async function notionPullAll(){
       orderNote:  r.properties['整筆備註']?.rich_text?.[0]?.plain_text||'',
       time:       r.properties['入單時間']?.rich_text?.[0]?.plain_text||'',
       session:    r.properties['場次']?.rich_text?.[0]?.plain_text||'',
-      orderId:    r.properties['訂單ID']?.rich_text?.[0]?.plain_text||''
-    })).filter(o=>o.product&&o.customer);
+      orderId:    r.properties['訂單ID']?.rich_text?.[0]?.plain_text||'',
+      deleted:    r.properties['已刪除']?.checkbox||false
+    })).filter(o=>o.product&&o.customer&&!o.deleted);
+    // 用 orderId 合併，本機有的保留，Notion 有但本機沒有的加入
+    const localIds = new Set(S.myOrders.map(o=>o.orderId).filter(Boolean));
+    const newOrders = incoming.filter(o=>!o.orderId || !localIds.has(o.orderId));
+    S.myOrders = [...S.myOrders, ...newOrders];
     renderMyOrders(); updateBadge();
   }
 
   save();
   toast(`✓ 讀取完成：${S.customers.length} 位客戶・${S.products.length} 件商品・${S.myOrders.length} 筆訂單`);
+}
+
+// 初始讀取（第一次使用，一次讀取所有資料）
+async function notionInitialSetup(){
+  const token = getNotionToken(); if(!token) return;
+
+  const dbg = document.getElementById('notion-debug');
+  const log = (msg)=>{ if(dbg) dbg.innerHTML += msg+'<br>'; toast(msg); };
+
+  // 確認彈窗
+  const ok = await new Promise(resolve=>{
+    const overlay = document.createElement('div');
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px';
+    overlay.innerHTML=`<div style="background:var(--surface);border-radius:var(--radius);padding:24px 20px;max-width:320px;width:100%;text-align:center">
+      <div style="font-size:15px;font-weight:500;margin-bottom:20px;line-height:1.6">初始讀取會從 Notion 載入所有資料並覆蓋本機現有資料。<br><br>確定執行？</div>
+      <div style="display:flex;gap:10px">
+        <button id="_init_cancel" style="flex:1;padding:12px;border:.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg);font-size:15px;font-family:inherit;cursor:pointer">取消</button>
+        <button id="_init_ok" style="flex:1;padding:12px;border:none;border-radius:var(--radius-sm);background:var(--accent);color:#fff;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer">確定</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#_init_cancel').onclick=()=>{ overlay.remove(); resolve(false); };
+    overlay.querySelector('#_init_ok').onclick=()=>{ overlay.remove(); resolve(true); };
+  });
+  if(!ok) return;
+
+  if(dbg) dbg.innerHTML = '';
+  log('🔄 開始初始讀取...');
+
+  // 場次
+  const sessResults = await notionQueryAll(NOTION_DB.sessions);
+  if(sessResults.length){
+    S.sessions = sessResults.map(r=>({
+      id: r.id, name: r.properties['場次名稱']?.title?.[0]?.plain_text||''
+    })).filter(s=>s.name);
+    updateSessionBar();
+  }
+  log(`場次：${sessResults.length} 筆`);
+
+  // 客戶
+  const custResults = await notionQueryAll(NOTION_DB.customers);
+  if(custResults.length){
+    S.customers = custResults.map(r=>({
+      name: r.properties['姓名']?.title?.[0]?.plain_text||'',
+      id:   r.properties['編號']?.rich_text?.[0]?.plain_text||''
+    })).filter(c=>c.name);
+    renderCustList();
+  }
+  log(`客戶：${custResults.length} 筆`);
+
+  // 商品
+  const prodResults = await notionQueryAll(NOTION_DB.products);
+  if(prodResults.length){
+    S.products = prodResults.map(r=>({
+      name:  r.properties['商品名稱']?.title?.[0]?.plain_text||'',
+      cat:   r.properties['類別']?.rich_text?.[0]?.plain_text||'',
+      price: r.properties['價格']?.number||''
+    })).filter(p=>p.name);
+    renderProdList(); rebuildAllCatSelects();
+  }
+  log(`商品：${prodResults.length} 筆`);
+
+  // 訂單（分批讀取，資料量大可能需要較長時間）
+  log('讀取訂單中…（請耐心等待）');
+  const orderResults = await notionQueryAll(NOTION_DB.orders);
+  log(`訂單：${orderResults.length} 筆`);
+  if(orderResults.length){
+    const incoming = orderResults.map(r=>({
+      product:    r.properties['商品名稱']?.title?.[0]?.plain_text||'',
+      customer:   r.properties['客戶名稱']?.rich_text?.[0]?.plain_text||'',
+      customerId: r.properties['客戶編號']?.rich_text?.[0]?.plain_text||'',
+      cat:        r.properties['類別']?.rich_text?.[0]?.plain_text||'',
+      qty:        r.properties['數量']?.number||0,
+      price:      r.properties['價錢']?.number||0,
+      note:       r.properties['單項備註']?.rich_text?.[0]?.plain_text||'',
+      orderNote:  r.properties['整筆備註']?.rich_text?.[0]?.plain_text||'',
+      time:       r.properties['入單時間']?.rich_text?.[0]?.plain_text||'',
+      session:    r.properties['場次']?.rich_text?.[0]?.plain_text||'',
+      orderId:    r.properties['訂單ID']?.rich_text?.[0]?.plain_text||'',
+      deleted:    r.properties['已刪除']?.checkbox||false
+    })).filter(o=>o.product&&o.customer&&!o.deleted);
+    // 初始讀取直接覆蓋
+    S.myOrders = incoming;
+    renderMyOrders(); updateBadge();
+    log(`已載入 ${S.myOrders.length} 筆訂單`);
+  }
+
+  save();
+  log(`✅ 初始讀取完成！`);
+  toast(`✓ 完成：${S.customers.length} 位客戶・${S.products.length} 件商品・${S.myOrders.length} 筆訂單`);
+}
+async function notionPullProducts(){
+  const token = getNotionToken(); if(!token) return;
+  const dbg = document.getElementById('notion-debug');
+  const log = (msg)=>{ if(dbg) dbg.innerHTML += msg+'<br>'; toast(msg); };
+  if(dbg) dbg.innerHTML = '';
+  log('🔄 讀取商品清單…');
+  const results = await notionQueryAll(NOTION_DB.products);
+  if(!results.length){ log('❌ 沒有讀到商品，請確認連線'); return; }
+  S.products = results.map(r=>({
+    name:  r.properties['商品名稱']?.title?.[0]?.plain_text||'',
+    cat:   r.properties['類別']?.rich_text?.[0]?.plain_text||'',
+    price: r.properties['價格']?.number||''
+  })).filter(p=>p.name);
+  save(); renderProdList(); rebuildAllCatSelects();
+  log(`✅ 商品清單已更新：${S.products.length} 件`);
+}
+
+// 單獨讀取客戶名單（以 Notion 為主，直接覆蓋）
+async function notionPullCustomers(){
+  const token = getNotionToken(); if(!token) return;
+  const dbg = document.getElementById('notion-debug');
+  const log = (msg)=>{ if(dbg) dbg.innerHTML += msg+'<br>'; toast(msg); };
+  if(dbg) dbg.innerHTML = '';
+  log('🔄 讀取客戶名單…');
+  const results = await notionQueryAll(NOTION_DB.customers);
+  if(!results.length){ log('❌ 沒有讀到客戶，請確認連線'); return; }
+  S.customers = results.map(r=>({
+    name: r.properties['姓名']?.title?.[0]?.plain_text||'',
+    id:   r.properties['編號']?.rich_text?.[0]?.plain_text||''
+  })).filter(c=>c.name);
+  save(); renderCustList();
+  log(`✅ 客戶名單已更新：${S.customers.length} 位`);
 }
 
 // ════════════════════════════ INIT ════════════════════════════
