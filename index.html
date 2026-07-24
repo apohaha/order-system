@@ -1089,6 +1089,12 @@ function submitOrder(){
 
   if(!customer){ toast('請填入客戶名稱'); document.getElementById('f-customer').focus(); return; }
 
+  // 場次必填
+  if(!S.currentSession || !getCurrentSessionName()){
+    showConfirm('尚未選擇場次，請先選擇場次再入單！', ()=>{ openSessionPicker(); });
+    return;
+  }
+
   // Block if customer not in list
   if(!S.customers.some(c=>c.name===customer||c.id===customer)){
     alertGoManage(`找不到客戶「${customer}」`); return;
@@ -1110,7 +1116,8 @@ function submitOrder(){
     if(!S.products.some(p=>p.name===name)){
       alertGoManage(`找不到商品「${name}」`); err=true; return;
     }
-    const prod=S.products.find(p=>p.name===name);
+    const prod = S.products.find(p=>p.name===name && (p.cat||'')===(cat==='__all__'?p.cat:cat))
+               || S.products.find(p=>p.name===name);
     items.push({product:name, qty, price:prod?prod.price:'', note:rowNote, cat:prod?prod.cat:cat!=='__all__'?cat:''});
   });
   if(err) return;
@@ -1385,8 +1392,12 @@ function getMergedOrders(){
 
 function buildSummary(orders){
   const map={};
-  orders.forEach(o=>{ map[o.product]=(map[o.product]||0)+(o.qty||0); });
-  return Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([product,qty])=>({product,qty}));
+  orders.forEach(o=>{
+    const key = `${o.cat||'未分類'}|||${o.product}`;
+    if(!map[key]) map[key]={product:o.product, cat:o.cat||'未分類', qty:0};
+    map[key].qty += (o.qty||0);
+  });
+  return Object.values(map).sort((a,b)=>b.qty-a.qty);
 }
 
 function renderMerge(){
@@ -1519,20 +1530,21 @@ function renderMerge(){
   const catMap={};
   all.forEach(o=>{
     const cat=o.cat||'未分類';
+    const key=`${cat}|||${o.product}`; // product+cat 唯一碼
     if(!catMap[cat]) catMap[cat]={};
-    if(!catMap[cat][o.product]) catMap[cat][o.product]=[];
-    catMap[cat][o.product].push({customer:o.customer||'?', qty:o.qty||0});
+    if(!catMap[cat][key]) catMap[cat][key]={product:o.product, buyers:[]};
+    catMap[cat][key].buyers.push({customer:o.customer||'?', qty:o.qty||0});
   });
   const sumEl=document.getElementById('merge-sum-table');
   if(sumEl) sumEl.innerHTML=Object.keys(catMap).length
     ? Object.entries(catMap).map(([cat,prods])=>`
       <div style="margin-bottom:14px">
         <div style="font-size:12px;font-weight:700;color:var(--accent);padding:6px 14px;background:var(--accent-bg);letter-spacing:.05em">${cat}</div>
-        ${Object.entries(prods).map(([prod,buyers])=>{
+        ${Object.values(prods).map(({product,buyers})=>{
           const totalQty=buyers.reduce((a,b)=>a+b.qty,0);
           return `<div style="border-bottom:.5px solid var(--border);padding:8px 14px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <span style="font-weight:600;font-size:14px">${prod}</span>
+              <span style="font-weight:600;font-size:14px">${product}</span>
               <span style="font-size:15px;font-weight:800;color:var(--red)">共 ${totalQty}</span>
             </div>
             <div style="font-size:13px;color:var(--text3)">
