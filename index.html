@@ -13,6 +13,14 @@ if(typeof XLSX === 'undefined'){
 <div id="xlsx-error" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#ff3b30;color:#fff;padding:12px 16px;font-size:14px;text-align:center;font-weight:600">
   ⚠️ 請確認網路連線後重新整理頁面
 </div>
+<div id="global-error" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#ff3b30;color:#fff;padding:12px 16px;font-size:13px;word-break:break-all"></div>
+<script>
+window.onerror = function(msg, src, line, col, err){
+  var el = document.getElementById('global-error');
+  if(el){ el.style.display='block'; el.textContent = '錯誤: ' + msg + ' (line ' + line + ')'; }
+  return false;
+};
+</script>
 <style>
 :root {
   --bg: #f2f2f7;
