@@ -1421,54 +1421,6 @@ function buildSummary(orders){
   return Object.values(map).sort((a,b)=>b.qty-a.qty);
 }
 
-function renderMerge(){
-  const sessionName = getCurrentSessionName();
-  const all = sessionName
-    ? S.myOrders.filter(o=>o.session===sessionName)
-    : S.myOrders;
-
-  const statEl = document.getElementById('stat-summary-boxes');
-  if(statEl){
-    const custs = new Set(all.map(o=>o.customer)).size;
-    const totalQty = all.reduce((a,o)=>a+(o.qty||0),0);
-    const totalAmt = all.reduce((a,o)=>a+((o.price||0)*(o.qty||0)),0);
-    statEl.innerHTML=`
-      <div class="stat-box"><div class="sl">客戶數</div><div class="sv">${custs}</div></div>
-      <div class="stat-box"><div class="sl">訂單筆數</div><div class="sv">${all.length}</div></div>
-      <div class="stat-box"><div class="sl">商品總數</div><div class="sv">${totalQty}</div></div>
-      <div class="stat-box"><div class="sl">總金額</div><div class="sv" style="color:var(--accent)">$${totalAmt.toLocaleString()}</div></div>`;
-  }
-
-  const catMap={};
-  all.forEach(o=>{
-    const cat=o.cat||'未分類';
-    const key=`${cat}|||${o.product}`;
-    if(!catMap[cat]) catMap[cat]={};
-    if(!catMap[cat][key]) catMap[cat][key]={product:o.product, buyers:[]};
-    catMap[cat][key].buyers.push({customer:o.customer||'?', qty:o.qty||0});
-  });
-
-  const sumEl=document.getElementById('merge-sum-table');
-  if(sumEl) sumEl.innerHTML=Object.keys(catMap).length
-    ? Object.entries(catMap).map(([cat,prods])=>`
-      <div style="margin-bottom:14px">
-        <div style="font-size:12px;font-weight:700;color:var(--accent);padding:6px 14px;background:var(--accent-bg);letter-spacing:.05em">${cat}</div>
-        ${Object.values(prods).map(({product,buyers})=>{
-          const totalQty=buyers.reduce((a,b)=>a+b.qty,0);
-          return `<div style="border-bottom:.5px solid var(--border);padding:8px 14px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <span style="font-weight:600;font-size:14px">${product}</span>
-              <span style="font-size:15px;font-weight:800;color:var(--red)">共 ${totalQty}</span>
-            </div>
-            <div style="font-size:13px;color:var(--text3)">
-              ${buyers.map(b=>`<span style="margin-right:8px">${b.customer} ×${b.qty}</span>`).join('')}
-            </div>
-          </div>`;
-        }).join('')}
-      </div>`).join('')
-    : '<div class="empty-state" style="padding:20px"><p>尚無資料</p></div>';
-}
-
 
 // ════════════════════════════ EXCEL ════════════════════════════
 function exportExcel(){
@@ -1838,7 +1790,6 @@ function showConfirm(msg, onOk){
   overlay.querySelector('#_conf_ok').onclick = ()=>{ overlay.remove(); onOk(); };
 }
 
-function exportMyJSON(){} // kept for compat
 
 // ── Edit full customer order ──
 let editRowSeq = 0;
@@ -2019,7 +1970,6 @@ function saveFullOrder(){
   toast('✓ 已更新');
 }
 
-function deleteMergeCustomerOrders(){ deleteMergeCustomerOrdersConfirmed(); }
 
 // kept stubs for any lingering references
 function openEditOrder(){}
