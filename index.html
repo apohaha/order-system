@@ -845,10 +845,10 @@ function switchScreen(name){
   document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
-  if(name==='orders'){ renderMyOrders(); }
-  if(name==='merge'){ renderMerge(); }
-  if(name==='manage'){ renderCustList(); renderProdList(); }
-  if(name==='enter'){ rebuildAllCatSelects(); updateBadge(); }
+  try{ if(name==='orders'){ renderMyOrders(); } }catch(e){}
+  try{ if(name==='merge'){ renderMerge(); } }catch(e){}
+  try{ if(name==='manage'){ renderCustList(); renderProdList(); } }catch(e){}
+  try{ if(name==='enter'){ rebuildAllCatSelects(); updateBadge(); } }catch(e){}
 }
 
 // ════════════════════════════ MODAL ════════════════════════════
@@ -2827,25 +2827,25 @@ async function notionPullCustomers(){
 }
 
 // ════════════════════════════ INIT ════════════════════════════
-(async ()=>{
-  try{ loadNotionSettings(); }catch(e){}
-  try{ updateSessionBar(); }catch(e){}
-  try{ renderMerge(); }catch(e){}
-  try{ addRow(); }catch(e){}
-  try{ updateBadge(); renderRecent(); }catch(e){}
+window.addEventListener('DOMContentLoaded', function(){
+  try{ loadNotionSettings(); }catch(e){ console.error(e); }
+  try{ updateSessionBar(); }catch(e){ console.error(e); }
+  try{ renderMerge(); }catch(e){ console.error(e); }
+  try{ addRow(); }catch(e){ console.error(e); }
+  try{ updateBadge(); renderRecent(); }catch(e){ console.error(e); }
   try{
-    const saveBtn = document.getElementById('edit-order-save-btn');
-    const delBtn = document.getElementById('edit-order-del-btn');
-    if(saveBtn) saveBtn.onclick = ()=>saveFullOrder();
-    if(delBtn) delBtn.onclick = ()=>deleteCustomerOrders();
-  }catch(e){}
+    var saveBtn = document.getElementById('edit-order-save-btn');
+    var delBtn = document.getElementById('edit-order-del-btn');
+    if(saveBtn) saveBtn.onclick = function(){ saveFullOrder(); };
+    if(delBtn) delBtn.onclick = function(){ deleteCustomerOrders(); };
+  }catch(e){ console.error(e); }
   // 自動跳出選場次（有token才開）
   try{
-    const token = (document.getElementById('notion-token')?.value?.trim())||
-                  (localStorage.getItem('notion_token')||'').trim();
-    if(token) await openSessionPicker();
+    var token = (document.getElementById('notion-token')?.value?.trim())||
+                (localStorage.getItem('notion_token')||'').trim();
+    if(token) openSessionPicker();
   }catch(e){ console.error('session picker error:', e); }
-})();
+});
 </script>
 </body>
 </html>
