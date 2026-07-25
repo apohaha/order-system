@@ -1393,9 +1393,8 @@ function clearMerge(){
 function removeMergeSrc(i){ S.mergeSources.splice(i,1); save(); renderMerge(); }
 
 function getMergedOrders(){
-  let all=[...S.mergeSources.flatMap(s=>s.orders)];
-  // include-mine removed
-  return all;
+  const sessionName = getCurrentSessionName();
+  return sessionName ? S.myOrders.filter(o=>o.session===sessionName) : S.myOrders;
 }
 
 function buildSummary(orders){
@@ -1409,79 +1408,53 @@ function buildSummary(orders){
 }
 
 function renderMerge(){
-  // Sources
-  // merge-sources-list removed
-  srcEl.innerHTML=S.mergeSources.length
-    ? S.mergeSources.map((s,i)=>{
-        const custCount=new Set(s.orders.map(o=>o.customer)).size;
-        return `<div class="merge-src">
-          <div><div class="ms-label">${s.label}</div><div class="ms-count">${s.orders.length} 筆・${custCount} 位客戶</div></div>
-          <button class="ms-del" onclick="removeMergeSrc(${i})">×</button>
-        </div>`;
-      }).join('')
-    : '<div class="empty-state" style="padding:20px"><p>尚無來源</p></div>';
+  const sessionName = getCurrentSessionName();
+  const all = sessionName
+    ? S.myOrders.filter(o=>o.session===sessionName)
+    : S.myOrders;
 
-  const all=getMergedOrders();
-  const custs=new Set(all.map(o=>o.customer)).size;
-  const totalQty=all.reduce((a,o)=>a+(o.qty||0),0);
-  const sum=buildSummary(all);
+  const statEl = document.getElementById('stat-summary-boxes');
+  if(statEl){
+    const custs = new Set(all.map(o=>o.customer)).size;
+    const totalQty = all.reduce((a,o)=>a+(o.qty||0),0);
+    const totalAmt = all.reduce((a,o)=>a+((o.price||0)*(o.qty||0)),0);
+    statEl.innerHTML=`
+      <div class="stat-box"><div class="sl">客戶數</div><div class="sv">${custs}</div></div>
+      <div class="stat-box"><div class="sl">訂單筆數</div><div class="sv">${all.length}</div></div>
+      <div class="stat-box"><div class="sl">商品總數</div><div class="sv">${totalQty}</div></div>
+      <div class="stat-box"><div class="sl">總金額</div><div class="sv" style="color:var(--accent)">$${totalAmt.toLocaleString()}</div></div>`;
+  }
 
-  // stats row removed (now in stat-summary-boxes)
-
-  const prevWrap=document.getElementById('merge-preview-wrap');
-  if(!all.length){ prevWrap.style.display='none'; return; }
-  prevWrap.style.display='block';
-
-  // group by customer, sort by customer name
-  const byCustomer={};
+  const catMap={};
   all.forEach(o=>{
-    if(!byCustomer[o.customer]) byCustomer[o.customer]={id:o.customerId||'',items:[]};
-    byCustomer[o.customer].items.push(o);
+    const cat=o.cat||'未分類';
+    const key=`${cat}|||${o.product}`;
+    if(!catMap[cat]) catMap[cat]={};
+    if(!catMap[cat][key]) catMap[cat][key]={product:o.product, buyers:[]};
+    catMap[cat][key].buyers.push({customer:o.customer||'?', qty:o.qty||0});
   });
-  const sortedCusts = sortList(Object.keys(byCustomer), n=>n);
 
-  document.getElementById('merge-sum-table').innerHTML = sortedCusts.map(name=>{
-    const g = byCustomer[name];
-    const byCat={};
-    g.items.forEach(o=>{ const cat=o.cat||'未分類'; if(!byCat[cat]) byCat[cat]=[]; byCat[cat].push(o); });
-    const sortedCats = sortList(Object.keys(byCat), c=>c);
-    const catRows = sortedCats.map(cat=>{
-      const items = sortList(byCat[cat], o=>o.product);
-      return `<div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;padding:5px 14px 2px;background:var(--bg);letter-spacing:0.04em">${cat}</div>`+
-        items.map(o=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:0.5px solid var(--border);font-size:14px">
-          <span>${o.product}</span>
-          <span style="font-weight:700;color:var(--red)">×${o.qty}</span>
-        </div>`).join('');
-    }).join('');
-
-    const safeId = g.id ? g.id.replace(/"/g,'&quot;') : '';
-    const safeNameAttr = name.replace(/"/g,'&quot;');
-    const inMine = S.myOrders.some(o=>o.customer===name);
-    const srcIdx = S.mergeSources.findIndex(s=>s.orders.some(o=>o.customer===name));
-    let editBtn = '';
-    if(inMine){
-      editBtn = `<button data-custkey="${safeNameAttr}" onclick="openEditCustomerOrder(this.dataset.custkey)"
-        style="background:var(--accent-bg);border:none;border-radius:6px;padding:5px 10px;font-size:12px;color:var(--accent);font-weight:600;font-family:inherit;cursor:pointer;flex-shrink:0">編輯</button>`;
-    } else if(srcIdx>=0){
-      editBtn = `<button data-srcidx="${srcIdx}" data-custkey="${safeNameAttr}" onclick="openMergeCustomerEdit(parseInt(this.dataset.srcidx),this.dataset.custkey)"
-        style="background:var(--accent-bg);border:none;border-radius:6px;padding:5px 10px;font-size:12px;color:var(--accent);font-weight:600;font-family:inherit;cursor:pointer;flex-shrink:0">編輯</button>`;
-    }
-
-    return `<div style="margin-bottom:10px;border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">
-      <div style="padding:10px 14px;background:var(--surface2);border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:6px">
-        <div style="display:flex;align-items:center;gap:6px">
-          ${g.id?`<span style="font-size:12px;color:var(--text3);font-family:monospace">${g.id}</span>`:''}
-          <span style="font-weight:600;font-size:15px">${name}</span>
-        </div>
-        ${editBtn}
-      </div>
-      ${catRows}
-    </div>`;
-  }).join('');
-
-  // refresh stats tab if visible
-  // mtab-stats removed
+  const sumEl=document.getElementById('merge-sum-table');
+  if(sumEl) sumEl.innerHTML=Object.keys(catMap).length
+    ? Object.entries(catMap).map(([cat,prods])=>`
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;font-weight:700;color:var(--accent);padding:6px 14px;background:var(--accent-bg);letter-spacing:.05em">${cat}</div>
+        ${Object.values(prods).map(({product,buyers})=>{
+          const totalQty=buyers.reduce((a,b)=>a+b.qty,0);
+          return `<div style="border-bottom:.5px solid var(--border);padding:8px 14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-weight:600;font-size:14px">${product}</span>
+              <span style="font-size:15px;font-weight:800;color:var(--red)">共 ${totalQty}</span>
+            </div>
+            <div style="font-size:13px;color:var(--text3)">
+              ${buyers.map(b=>`<span style="margin-right:8px">${b.customer} ×${b.qty}</span>`).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`).join('')
+    : '<div class="empty-state" style="padding:20px"><p>尚無資料</p></div>';
 }
+
 
 // ════════════════════════════ EXCEL ════════════════════════════
 function exportExcel(){
