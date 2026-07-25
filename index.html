@@ -647,8 +647,19 @@ function notionRequest(method, path, body, cb){
   if(body) opts.body = JSON.stringify(body);
   fetch(WORKER+path, opts)
     .then(function(r){ return r.json(); })
-    .then(function(data){ if(cb) cb(data); })
-    .catch(function(e){ toast('網路錯誤：'+e.message); if(cb) cb(null); });
+    .then(function(data){ 
+      if(data&&data.message){
+        var dbg=document.getElementById('notion-debug');
+        if(dbg) dbg.textContent+='\n❌ '+data.message;
+      }
+      if(cb) cb(data); 
+    })
+    .catch(function(e){ 
+      var dbg=document.getElementById('notion-debug');
+      if(dbg) dbg.textContent+='\n❌ 網路錯誤：'+e.message;
+      toast('網路錯誤：'+e.message); 
+      if(cb) cb(null); 
+    });
 }
 
 function notionQueryAll(dbId, filter, cb){
@@ -658,7 +669,14 @@ function notionQueryAll(dbId, filter, cb){
     if(filter) body.filter=filter;
     if(cursor) body.start_cursor=cursor;
     notionRequest('POST','/v1/databases/'+dbId+'/query',body,function(data){
-      if(!data||!data.results){ cb(results); return; }
+      if(!data){ cb(results); return; }
+      if(data.status&&data.status===401){ toast('Token 無效，請重新填入'); cb(results); return; }
+      if(data.status&&data.status===404){ toast('資料庫 ID 錯誤'); cb(results); return; }
+      if(!data.results){ 
+        var dbg=document.getElementById('notion-debug');
+        if(dbg) dbg.textContent+='\n⚠️ 回應：'+JSON.stringify(data).substr(0,100);
+        cb(results); return; 
+      }
       results=results.concat(data.results);
       if(data.has_more&&data.next_cursor) fetchPage(data.next_cursor);
       else cb(results);
