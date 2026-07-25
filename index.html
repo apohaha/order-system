@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>入單系統</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onerror="document.getElementById('xlsx-error').style.display='block'"></script>
+<script>
+if(typeof XLSX === 'undefined'){
+  document.write('<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>');
+}
+</script>
+<div id="xlsx-error" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#ff3b30;color:#fff;padding:12px 16px;font-size:14px;text-align:center;font-weight:600">
+  ⚠️ 請確認網路連線後重新整理頁面
+</div>
 <style>
 :root {
   --bg: #f2f2f7;
@@ -2197,16 +2205,17 @@ function clearAllData(){
 // S.sessions = [{id, name}], S.currentSession = id
 
 async function openSessionPicker(){
+  const token = (document.getElementById('notion-token')?.value?.trim())||
+                (localStorage.getItem('notion_token')||'').trim();
+
+  if(!token){
+    toast('請先到「資料管理」填入 Notion Token，再切換場次');
+    return; // 不開 modal
+  }
+
   const el = document.getElementById('session-picker-list');
   el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3)">載入中…</div>';
   openModal('modal-session-picker');
-
-  const token = (document.getElementById('notion-token')?.value?.trim())||
-                (localStorage.getItem('notion_token')||'').trim();
-  if(!token){
-    el.innerHTML='<div style="padding:16px;text-align:center;color:var(--red)">請先到「資料管理」填入 Notion Token</div>';
-    return;
-  }
 
   try{
     const res = await fetch(`${NOTION_WORKER}/v1/databases/${NOTION_DB.sessions}/query`, {
@@ -2810,21 +2819,24 @@ async function notionPullCustomers(){
 }
 
 // ════════════════════════════ INIT ════════════════════════════
-// Set default handlers for edit order modal buttons
-document.getElementById('edit-order-save-btn').onclick = saveFullOrder;
-document.getElementById('edit-order-del-btn').onclick = deleteCustomerOrders;
-loadNotionSettings(); updateSessionBar(); renderMerge(); addRow();
-
-// 自動跳出選場次
 (async ()=>{
+  try{ loadNotionSettings(); }catch(e){}
+  try{ updateSessionBar(); }catch(e){}
+  try{ renderMerge(); }catch(e){}
+  try{ addRow(); }catch(e){}
+  try{ updateBadge(); renderRecent(); }catch(e){}
+  try{
+    const saveBtn = document.getElementById('edit-order-save-btn');
+    const delBtn = document.getElementById('edit-order-del-btn');
+    if(saveBtn) saveBtn.onclick = ()=>saveFullOrder();
+    if(delBtn) delBtn.onclick = ()=>deleteCustomerOrders();
+  }catch(e){}
+  // 自動跳出選場次（有token才開）
   try{
     const token = (document.getElementById('notion-token')?.value?.trim())||
                   (localStorage.getItem('notion_token')||'').trim();
-    if(token){
-      await openSessionPicker();
-    }
+    if(token) await openSessionPicker();
   }catch(e){ console.error('session picker error:', e); }
-  updateBadge(); renderRecent();
 })();
 </script>
 </body>
