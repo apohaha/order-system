@@ -542,6 +542,11 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
             ⬇ 初始讀取
           </button>
         </div>
+        <div style="border-top:.5px solid var(--border)">
+          <button onclick="notionDedup()" style="width:100%;padding:12px;border:none;background:var(--orange-bg);color:var(--orange);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">
+            🧹 清除 Notion 重複訂單
+          </button>
+        </div>
       </div>
 
         <div style="padding:10px 14px;border-top:.5px solid var(--border)">
@@ -1213,7 +1218,10 @@ function switchMergeTab(tab){
 function switchOrderTab(){}
 
 function renderMyOrders(){
-  const orders = S.myOrders;
+  const sessionName = getCurrentSessionName();
+  const orders = sessionName
+    ? S.myOrders.filter(o=>o.session===sessionName)
+    : S.myOrders;
   const statsEl = document.getElementById('my-stats');
   const totalQty = orders.reduce((a,o)=>a+(o.qty||0),0);
   statsEl.innerHTML=`
@@ -1513,7 +1521,10 @@ function exportExcel(){
 }
 
 function renderMerge(){
-  const all = S.myOrders;
+  const sessionName = getCurrentSessionName();
+  const all = sessionName
+    ? S.myOrders.filter(o=>o.session===sessionName)
+    : S.myOrders;
   // stats
   const statEl = document.getElementById('stat-summary-boxes');
   if(statEl){
@@ -1649,7 +1660,6 @@ function addCustomer(){
   if(S.customers.some(c=>c.id===id)){ toast('編號已存在'); return; }
   S.customers.push({id,name}); save();
   closeModal('modal-add-customer'); renderCustList(); toast(`✓ 已新增：${name}`);
-}
 function deleteCustomer(i){ S.customers.splice(i,1); save(); renderCustList(); }
 function renderCustList(){
   const el=document.getElementById('cust-list');
@@ -2220,40 +2230,37 @@ async function openSessionPicker(){
   el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3)">載入中…</div>';
   openModal('modal-session-picker');
 
-  const token = document.getElementById('notion-token')?.value?.trim();
+  const token = (document.getElementById('notion-token')?.value?.trim())||
+                (localStorage.getItem('notion_token')||'').trim();
   if(!token){
     el.innerHTML='<div style="padding:16px;text-align:center;color:var(--red)">請先到「資料管理」填入 Notion Token</div>';
     return;
   }
 
-  const res = await notionRequest('POST', `/v1/databases/${NOTION_DB.sessions}/query`, {page_size:100});
-  
-  if(!res){
-    el.innerHTML='<div style="padding:16px;color:var(--red)">讀取失敗，請確認 Token 和 Notion 連線</div>';
-    return;
+  try{
+    const res = await fetch(`${NOTION_WORKER}/v1/databases/${NOTION_DB.sessions}/query`, {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({page_size:100})
+    });
+    const data = await res.json();
+    if(!data.results||!data.results.length){
+      el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3)">場次清單是空的，請先在 Notion 新增場次</div>';
+      return;
+    }
+    S.sessions = data.results.map(r=>({
+      id: r.id,
+      name: r.properties['場次名稱']?.title?.[0]?.plain_text||''
+    })).filter(s=>s.name);
+    save();
+    el.innerHTML = S.sessions.map(s=>`
+      <div onclick="selectSession('${s.id}')" style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:.5px solid var(--border);cursor:pointer">
+        <span style="font-size:16px">${s.id===S.currentSession?'✅':'⬜'}</span>
+        <span style="font-size:15px;font-weight:${s.id===S.currentSession?'600':'400'}">${s.name}</span>
+      </div>`).join('');
+  }catch(err){
+    el.innerHTML=`<div style="padding:16px;color:var(--red)">讀取失敗：${err.message}</div>`;
   }
-
-  if(!res.results||!res.results.length){
-    el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3)">場次清單是空的，請先在 Notion 新增場次</div>';
-    return;
-  }
-
-  S.sessions = res.results.map(r=>({
-    id:   r.id,
-    name: r.properties['場次名稱']?.title?.[0]?.plain_text||''
-  })).filter(s=>s.name);
-  save();
-
-  if(!S.sessions.length){
-    el.innerHTML='<div style="padding:16px;color:var(--red)">讀到資料但欄位名稱不符，請確認欄位名稱是「場次名稱」</div>';
-    return;
-  }
-
-  el.innerHTML = S.sessions.map(s=>`
-    <div onclick="selectSession('${s.id}')" style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:.5px solid var(--border);cursor:pointer">
-      <span style="font-size:16px">${s.id===S.currentSession?'✅':'⬜'}</span>
-      <span style="font-size:15px;font-weight:${s.id===S.currentSession?'600':'400'}">${s.name}</span>
-    </div>`).join('');
 }
 
 function selectSession(id){
@@ -2262,6 +2269,68 @@ function selectSession(id){
   closeModal('modal-session-picker');
   const name = S.sessions.find(s=>s.id===id)?.name||'';
   toast(`✓ 已切換到「${name}」`);
+  // 自動讀取該場次資料
+  notionLoadSession();
+}
+
+// 讀取指定場次的訂單
+async function notionLoadSession(){
+  const token = getNotionToken(); if(!token) return;
+  const sessionName = getCurrentSessionName();
+  if(!sessionName){ toast('請先選擇場次'); return; }
+
+  const dbg = document.getElementById('notion-debug');
+  const log = (msg)=>{ if(dbg) dbg.innerHTML += msg+'<br>'; toast(msg); };
+  if(dbg) dbg.innerHTML = '';
+  log(`🔄 讀取場次「${sessionName}」的訂單…`);
+
+  // 用 filter 只讀該場次
+  const body = {
+    page_size: 100,
+    filter: {
+      property: '場次',
+      rich_text: { equals: sessionName }
+    }
+  };
+
+  let results = [];
+  let cursor = undefined;
+  let page = 0;
+  while(true){
+    page++;
+    const b = { ...body };
+    if(cursor) b.start_cursor = cursor;
+    const res = await notionRequest('POST', `/v1/databases/${NOTION_DB.orders}/query`, b, true);
+    if(!res || !res.results) break;
+    results = results.concat(res.results);
+    if(!res.has_more || !res.next_cursor) break;
+    cursor = res.next_cursor;
+    if(page > 50) break;
+  }
+
+  log(`找到 ${results.length} 筆`);
+
+  // 清空本機該場次訂單，以 Notion 為主
+  S.myOrders = S.myOrders.filter(o=>o.session !== sessionName);
+
+  const incoming = results.map(r=>({
+    product:    r.properties['商品名稱']?.title?.[0]?.plain_text||'',
+    customer:   r.properties['客戶名稱']?.rich_text?.[0]?.plain_text||'',
+    customerId: r.properties['客戶編號']?.rich_text?.[0]?.plain_text||'',
+    cat:        r.properties['類別']?.rich_text?.[0]?.plain_text||'',
+    qty:        r.properties['數量']?.number||0,
+    price:      r.properties['價錢']?.number||0,
+    note:       r.properties['單項備註']?.rich_text?.[0]?.plain_text||'',
+    orderNote:  r.properties['整筆備註']?.rich_text?.[0]?.plain_text||'',
+    time:       r.properties['入單時間']?.rich_text?.[0]?.plain_text||'',
+    session:    r.properties['場次']?.rich_text?.[0]?.plain_text||'',
+    orderId:    r.properties['訂單ID']?.rich_text?.[0]?.plain_text||'',
+    deleted:    r.properties['已刪除']?.checkbox||false
+  })).filter(o=>o.product&&o.customer&&!o.deleted);
+
+  S.myOrders = [...S.myOrders, ...incoming];
+  save(); renderMyOrders(); updateBadge(); renderMerge();
+  log(`✅ 已載入 ${incoming.length} 筆訂單`);
 }
 
 function updateSessionBar(){
@@ -2357,7 +2426,7 @@ async function notionQueryAll(dbId){
   return results;
 }
 
-// 推送訂單（完整同步：新增/更新/標記刪除）
+// 推送訂單（只推新增/有變更的，跳過未變更）
 async function notionPushOrders(){
   const token = getNotionToken(); if(!token) return;
   if(!S.myOrders.length){ toast('沒有訂單可推送'); return; }
@@ -2366,42 +2435,76 @@ async function notionPushOrders(){
   const log = (msg)=>{ if(dbg) dbg.innerHTML += msg+'<br>'; toast(msg); };
   if(dbg) dbg.innerHTML = '';
 
-  // 先確保每筆訂單都有穩定的 orderId
+  const sessionName = getCurrentSessionName();
+  const sessionOrders = S.myOrders.filter(o=>o.session===sessionName);
+  if(!sessionOrders.length){ log('目前場次沒有訂單可推送'); return; }
+  log(`本機「${sessionName}」訂單：${sessionOrders.length} 筆`);
+
+  // 確保每筆訂單都有 orderId
   let needSave = false;
-  S.myOrders.forEach(o=>{
+  sessionOrders.forEach(o=>{
     if(!o.orderId){
-      const key = `${o.customer}|${o.product}|${o.qty}|${o.time}`;
-      let hash = 0;
-      for(let i=0;i<key.length;i++){ hash=((hash<<5)-hash)+key.charCodeAt(i); hash|=0; }
-      o.orderId = `stable-${Math.abs(hash).toString(36)}`;
+      o.orderId = `${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
       needSave = true;
     }
   });
   if(needSave) save();
-
-  log('🔄 開始同步訂單...');
-  log(`本機訂單：${S.myOrders.length} 筆`);
-
-  // 讀取 Notion 所有訂單
+  // 只讀取該場次的 Notion 訂單
   log('讀取 Notion 現有訂單…');
-  const existing = await notionQueryAll(NOTION_DB.orders);
+  let existing = [];
+  let cursor = undefined;
+  let page = 0;
+  while(true){
+    page++;
+    const b = {
+      page_size: 100,
+      filter: { property:'場次', rich_text:{ equals: sessionName } }
+    };
+    if(cursor) b.start_cursor = cursor;
+    const res = await notionRequest('POST', `/v1/databases/${NOTION_DB.orders}/query`, b, true);
+    if(!res||!res.results) break;
+    existing = existing.concat(res.results);
+    if(!res.has_more||!res.next_cursor) break;
+    cursor = res.next_cursor;
+    if(page>50) break;
+  }
   log(`Notion 現有：${existing.length} 筆`);
 
+  // 建立 Notion 訂單 map
   const notionMap = {};
   existing.forEach(r=>{
     const oid = r.properties['訂單ID']?.rich_text?.[0]?.plain_text||'';
-    if(oid) notionMap[oid] = {
-      pageId: r.id,
-      deleted: r.properties['已刪除']?.checkbox||false
+    if(!oid) return;
+    notionMap[oid] = {
+      pageId:   r.id,
+      deleted:  r.properties['已刪除']?.checkbox||false,
+      sig: [
+        r.properties['商品名稱']?.title?.[0]?.plain_text||'',
+        r.properties['客戶名稱']?.rich_text?.[0]?.plain_text||'',
+        r.properties['客戶編號']?.rich_text?.[0]?.plain_text||'',
+        r.properties['類別']?.rich_text?.[0]?.plain_text||'',
+        r.properties['數量']?.number||0,
+        r.properties['價錢']?.number||0,
+        r.properties['單項備註']?.rich_text?.[0]?.plain_text||'',
+        r.properties['整筆備註']?.rich_text?.[0]?.plain_text||'',
+        r.properties['場次']?.rich_text?.[0]?.plain_text||''
+      ].join('|')
     };
   });
 
-  const localIds = new Set(S.myOrders.map(o=>o.orderId));
-  let added=0, updated=0, deleted=0, fail=0;
+  const localIds = new Set(sessionOrders.map(o=>o.orderId));
+  let added=0, updated=0, skipped=0, deleted=0, fail=0;
 
-  // 1. 新增或更新
-  log('新增/更新中…');
-  for(const o of S.myOrders){
+  log('比對並推送中…');
+
+  // 1. 新增或更新（只推有變更的）
+  for(const o of sessionOrders){
+    const localSig = [
+      o.product||'', o.customer||'', o.customerId||'',
+      o.cat||'', o.qty||0, o.price||0,
+      o.note||'', o.orderNote||'', o.session||''
+    ].join('|');
+
     const props = {
       '商品名稱':{ title:[{ text:{ content: o.product||'' } }] },
       '客戶名稱':{ rich_text:[{ text:{ content: o.customer||'' } }] },
@@ -2416,17 +2519,23 @@ async function notionPushOrders(){
       '訂單ID':  { rich_text:[{ text:{ content: o.orderId } }] },
       '已刪除':  { checkbox: false },
     };
+
     if(notionMap[o.orderId]){
-      const res = await notionRequest('PATCH', `/v1/pages/${notionMap[o.orderId].pageId}`, { properties: props }, true);
+      const n = notionMap[o.orderId];
+      if(n.sig === localSig && !n.deleted){
+        skipped++; continue; // 內容相同，跳過
+      }
+      // 內容不同或之前被標記刪除 → 更新
+      const res = await notionRequest('PATCH', `/v1/pages/${n.pageId}`, { properties: props }, true);
       if(res) updated++; else fail++;
     } else {
+      // 不存在 → 新增
       const res = await notionRequest('POST', '/v1/pages', { parent:{ database_id: NOTION_DB.orders }, properties: props }, true);
       if(res) added++; else fail++;
     }
   }
 
-  // 2. 標記刪除
-  log('標記已刪除…');
+  // 2. 本機沒有 → 標記刪除
   for(const [oid, info] of Object.entries(notionMap)){
     if(!localIds.has(oid) && !info.deleted){
       const res = await notionRequest('PATCH', `/v1/pages/${info.pageId}`, {
@@ -2437,7 +2546,8 @@ async function notionPushOrders(){
   }
 
   save();
-  log(`✅ 同步完成！新增 ${added}・更新 ${updated}・標記刪除 ${deleted}${fail?`・失敗 ${fail}`:''}`);
+  log(`✅ 完成！新增 ${added}・更新 ${updated}・略過 ${skipped}・標記刪除 ${deleted}${fail?`・失敗 ${fail}`:''}`);
+}
 }
 
 // 推送客戶名單
@@ -2583,6 +2693,8 @@ async function notionInitialSetup(){
 
   if(dbg) dbg.innerHTML = '';
   log('🔄 開始初始讀取...');
+  // 先清空本機訂單，以 Notion 為主
+  S.myOrders = [];
 
   // 場次
   const sessResults = await notionQueryAll(NOTION_DB.sessions);
@@ -2646,6 +2758,52 @@ async function notionInitialSetup(){
   log(`✅ 初始讀取完成！`);
   toast(`✓ 完成：${S.customers.length} 位客戶・${S.products.length} 件商品・${S.myOrders.length} 筆訂單`);
 }
+// 清除 Notion 重複訂單
+async function notionDedup(){
+  const token = getNotionToken(); if(!token) return;
+  const dbg = document.getElementById('notion-debug');
+  const log = (msg)=>{ if(dbg) dbg.innerHTML += msg+'<br>'; toast(msg); };
+  if(dbg) dbg.innerHTML = '';
+  log('🔍 讀取 Notion 所有訂單…');
+
+  const all = await notionQueryAll(NOTION_DB.orders);
+  log(`共 ${all.length} 筆`);
+
+  // 用「客戶+商品+類別+數量+時間」當唯一碼
+  const seen = {};
+  const toDelete = [];
+  all.forEach(r=>{
+    const props = r.properties;
+    const key = [
+      props['客戶名稱']?.rich_text?.[0]?.plain_text||'',
+      props['商品名稱']?.title?.[0]?.plain_text||'',
+      props['類別']?.rich_text?.[0]?.plain_text||'',
+      props['數量']?.number||0,
+      props['入單時間']?.rich_text?.[0]?.plain_text||''
+    ].join('|');
+    const alreadyDeleted = props['已刪除']?.checkbox||false;
+    if(alreadyDeleted) return;
+    if(seen[key]){
+      toDelete.push(r.id);
+    } else {
+      seen[key] = true;
+    }
+  });
+
+  log(`發現 ${toDelete.length} 筆重複`);
+  if(!toDelete.length){ log('✅ 沒有重複訂單！'); return; }
+
+  log('標記刪除中…');
+  let ok=0, fail=0;
+  for(const pageId of toDelete){
+    const res = await notionRequest('PATCH', `/v1/pages/${pageId}`, {
+      properties:{ '已刪除':{ checkbox: true } }
+    }, true);
+    if(res) ok++; else fail++;
+  }
+  log(`✅ 完成！已標記刪除 ${ok} 筆重複${fail?`・失敗 ${fail} 筆`:''}`);
+}
+
 async function notionPullProducts(){
   const token = getNotionToken(); if(!token) return;
   const dbg = document.getElementById('notion-debug');
@@ -2684,7 +2842,19 @@ async function notionPullCustomers(){
 // Set default handlers for edit order modal buttons
 document.getElementById('edit-order-save-btn').onclick = saveFullOrder;
 document.getElementById('edit-order-del-btn').onclick = deleteCustomerOrders;
-updateBadge(); renderRecent(); addRow(); loadNotionSettings(); updateSessionBar(); renderMerge();
+loadNotionSettings(); updateSessionBar(); renderMerge(); addRow();
+
+// 自動跳出選場次
+(async ()=>{
+  try{
+    const token = (document.getElementById('notion-token')?.value?.trim())||
+                  (localStorage.getItem('notion_token')||'').trim();
+    if(token){
+      await openSessionPicker();
+    }
+  }catch(e){ console.error('session picker error:', e); }
+  updateBadge(); renderRecent();
+})();
 </script>
 </body>
 </html>
