@@ -322,7 +322,29 @@ select{-webkit-appearance:none;appearance:none}
   </div>
 </div>
 
-<div id="toast"></div>
+<!-- ══ EDIT ORDER MODAL ══ -->
+<div class="modal-overlay" id="modal-edit-order" onclick="closeModal('modal-edit-order')">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">編輯訂單</div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:4px">商品</div>
+      <div id="edit-product-name" style="font-weight:600;font-size:15px"></div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:4px">數量</div>
+      <input type="number" id="edit-qty" min="1" style="width:100%;border:.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:15px;font-family:inherit;outline:none">
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:4px">單項備註</div>
+      <input type="text" id="edit-note" placeholder="選填" style="width:100%;border:.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:15px;font-family:inherit;outline:none">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" style="background:var(--red);color:#fff;flex:1" onclick="deleteEditOrder()">刪除</button>
+      <button class="btn btn-primary" style="flex:2" onclick="saveEditOrder()">儲存</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ══ NOTION CONFIG ══
@@ -612,7 +634,8 @@ function renderOrders(){
     var g=byC[name];
     return '<div class="order-card"><div class="order-card-head"><div>'+(g.id?'<span class="oc-id">'+g.id+'</span>':'')+' <span class="oc-name">'+name+'</span></div></div>'+
       g.items.map(function(o){
-        return '<div class="order-item-row"><span><span class="oi-cat">'+o.cat+'</span>'+o.product+'</span><span class="oi-qty">×'+o.qty+'</span></div>';
+        var idx=S.orders.indexOf(o);
+        return '<div class="order-item-row"><div style="flex:1"><span class="oi-cat">'+o.cat+'</span>'+o.product+(o.note?'<div style="font-size:12px;color:var(--text3)">'+o.note+'</div>':'')+'</div><div style="display:flex;align-items:center;gap:8px"><span class="oi-qty">×'+o.qty+'</span><button onclick="openEditOrder('+idx+')" style="background:var(--accent-bg);border:none;border-radius:6px;padding:4px 8px;font-size:12px;color:var(--accent);font-weight:600;font-family:inherit;cursor:pointer">編輯</button></div></div>';
       }).join('')+'</div>';
   }).join('');
 }
@@ -689,7 +712,32 @@ function clearAll(){
   });
 }
 
-// ══ NOTION API ══
+// ══ EDIT ORDER ══
+var _editIdx = -1;
+function openEditOrder(idx){
+  _editIdx = idx;
+  var o = S.orders[idx];
+  if(!o) return;
+  document.getElementById('edit-product-name').textContent = '['+o.cat+'] '+o.product;
+  document.getElementById('edit-qty').value = o.qty;
+  document.getElementById('edit-note').value = o.note||'';
+  openModal('modal-edit-order');
+}
+function saveEditOrder(){
+  if(_editIdx<0) return;
+  var qty = parseInt(document.getElementById('edit-qty').value)||0;
+  if(qty<1){ toast('數量需≥1'); return; }
+  S.orders[_editIdx].qty = qty;
+  S.orders[_editIdx].note = document.getElementById('edit-note').value.trim();
+  save(); closeModal('modal-edit-order'); renderOrders(); toast('✓ 已儲存');
+}
+function deleteEditOrder(){
+  if(_editIdx<0) return;
+  showConfirm('確定刪除這筆訂單？', function(){
+    S.orders.splice(_editIdx,1);
+    save(); closeModal('modal-edit-order'); renderOrders(); updateBadge(); toast('✓ 已刪除');
+  });
+}
 function notionRequest(method, path, body, cb){
   var token = getToken();
   if(!token){ toast('請先填入 Notion Token'); if(cb) cb(null); return; }
