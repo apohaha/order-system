@@ -26,8 +26,8 @@ body{font-family:-apple-system,sans-serif;background:var(--bg);color:var(--text)
 .nav-sub{font-size:13px;color:var(--text3);margin-top:1px}
 .nav-action{font-size:15px;color:var(--accent);font-weight:500;background:none;border:none;cursor:pointer;padding:4px 0;font-family:inherit}
 /* tab bar */
-.tab-bar{background:var(--surface);border-top:.5px solid var(--border2);display:flex;padding-bottom:env(safe-area-inset-bottom)}
-.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 4px;cursor:pointer;border:none;background:none;font-family:inherit;font-size:10px;color:var(--text3);transition:color .15s}
+.tab-bar{background:var(--surface);border-top:.5px solid var(--border2);display:flex;padding-bottom:max(env(safe-area-inset-bottom),8px);padding-top:4px;min-height:60px}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 4px;cursor:pointer;border:none;background:none;font-family:inherit;font-size:10px;color:var(--text3)}
 .tab-item svg{width:24px;height:24px}
 .tab-item.active{color:var(--accent)}
 /* session bar */
@@ -45,8 +45,10 @@ body{font-family:-apple-system,sans-serif;background:var(--bg);color:var(--text)
 .group-row textarea{resize:none;line-height:1.4}
 select{-webkit-appearance:none;appearance:none}
 /* product rows */
-.prod-row{display:grid;grid-template-columns:110px 1fr 70px;gap:8px;align-items:center;padding:10px 16px;border-bottom:.5px solid var(--border)}
+.prod-row{padding:10px 16px;border-bottom:.5px solid var(--border)}
 .prod-row:last-child{border-bottom:none}
+.prod-row .pr-top{display:grid;grid-template-columns:110px 1fr 60px;gap:8px;align-items:center;margin-bottom:6px}
+.prod-row .pr-note{width:100%;border:none;border-top:.5px solid var(--border);outline:none;font-size:13px;font-family:inherit;background:transparent;color:var(--text3);padding-top:6px}
 .prod-row select,.prod-row input{border:none;outline:none;font-size:14px;font-family:inherit;background:transparent;width:100%;color:var(--text)}
 .prod-row .pr-qty{text-align:right}
 /* buttons */
@@ -152,7 +154,7 @@ select{-webkit-appearance:none;appearance:none}
         <span style="font-size:13px;color:var(--text3);font-weight:600">商品項目</span>
         <span style="font-size:12px;color:var(--text3)">最多 10 項</span>
       </div>
-      <div style="display:grid;grid-template-columns:110px 1fr 70px;gap:8px;padding:6px 16px 4px">
+      <div style="display:grid;grid-template-columns:110px 1fr 60px;gap:8px;padding:6px 16px 4px">
         <span style="font-size:12px;color:var(--text3)">類別</span>
         <span style="font-size:12px;color:var(--text3)">商品</span>
         <span style="font-size:12px;color:var(--text3);text-align:right">數量</span>
@@ -492,9 +494,12 @@ function addRow(){
   div.className = 'prod-row';
   div.id = 'row-'+id;
   div.innerHTML =
+    '<div class="pr-top">'+
     '<select class="pr-cat" onchange="onCatChange('+id+')">'+'<option value="">選類別</option>'+cats.map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('')+'</select>'+
     '<select class="pr-prod"><option value="">選商品</option></select>'+
-    '<input type="number" class="pr-qty" min="1" value="1" style="text-align:right">';
+    '<input type="number" class="pr-qty" min="1" value="1" style="text-align:right">'+
+    '</div>'+
+    '<input type="text" class="pr-note" placeholder="單項備註（選填）">';
   rows.appendChild(div);
 }
 function onCatChange(id){
@@ -526,10 +531,11 @@ function submitOrder(){
     var cat=row.querySelector('.pr-cat').value;
     var prod=row.querySelector('.pr-prod').value;
     var qty=parseInt(row.querySelector('.pr-qty').value)||0;
+    var rowNote=row.querySelector('.pr-note').value.trim();
     if(!cat||!prod){ toast('請選擇類別和商品'); err=true; return; }
     if(qty<1){ toast('數量需≥1'); err=true; return; }
     var p = S.products.find(function(x){ return x.name===prod&&x.cat===cat; })||{};
-    items.push({cat:cat,product:prod,qty:qty,price:p.price||0});
+    items.push({cat:cat,product:prod,qty:qty,price:p.price||0,note:rowNote});
   });
   if(err||!items.length) return;
   var time = new Date().toLocaleString('zh-TW',{hour12:false});
@@ -538,7 +544,7 @@ function submitOrder(){
     S.orders.push({
       customer:custObj.name, customerId:custObj.id,
       cat:item.cat, product:item.product, qty:item.qty, price:item.price,
-      note:'', orderNote:note, time:time,
+      note:item.note||'', orderNote:note, time:time,
       session:S.currentSessionName, orderId:orderId
     });
   });
