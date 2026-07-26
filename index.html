@@ -916,6 +916,8 @@ function notionPush(){
           (r.properties['商品名稱']&&r.properties['商品名稱'].title&&r.properties['商品名稱'].title[0]&&r.properties['商品名稱'].title[0].plain_text)||'',
           (r.properties['客戶名稱']&&r.properties['客戶名稱'].rich_text&&r.properties['客戶名稱'].rich_text[0]&&r.properties['客戶名稱'].rich_text[0].plain_text)||'',
           (r.properties['數量']&&r.properties['數量'].number)||0,
+          (r.properties['單項備註']&&r.properties['單項備註'].rich_text&&r.properties['單項備註'].rich_text[0]&&r.properties['單項備註'].rich_text[0].plain_text)||'',
+          (r.properties['整筆備註']&&r.properties['整筆備註'].rich_text&&r.properties['整筆備註'].rich_text[0]&&r.properties['整筆備註'].rich_text[0].plain_text)||'',
           (r.properties['場次']&&r.properties['場次'].rich_text&&r.properties['場次'].rich_text[0]&&r.properties['場次'].rich_text[0].plain_text)||''
         ].join('|')
       };
@@ -943,7 +945,7 @@ function notionPush(){
         return;
       }
       var o=queue.shift();
-      var localSig=[o.product,o.customer,o.qty,o.session].join('|');
+      var localSig=[o.product,o.customer,o.qty,o.note||'',o.orderNote||'',o.session].join('|');
       var props={
         '商品名稱':{title:[{text:{content:o.product||''}}]},
         '客戶名稱':{rich_text:[{text:{content:o.customer||''}}]},
