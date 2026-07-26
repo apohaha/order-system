@@ -174,6 +174,9 @@ select{-webkit-appearance:none;appearance:none}
 <div id="screen-orders" class="screen">
   <div class="nav-bar"><div class="nav-title">我的訂單</div></div>
   <div class="section">
+    <select id="orders-session-filter" onchange="renderOrders()" style="width:100%;border:.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:14px;font-family:inherit;outline:none;background:var(--surface);color:var(--text);margin-bottom:14px">
+      <option value="">全部場次</option>
+    </select>
     <div class="stats-grid" id="orders-stats"></div>
     <div id="orders-list"></div>
   </div>
@@ -183,6 +186,9 @@ select{-webkit-appearance:none;appearance:none}
 <div id="screen-merge" class="screen">
   <div class="nav-bar"><div class="nav-title">匯出</div></div>
   <div class="section">
+    <select id="export-session-filter" onchange="renderExport()" style="width:100%;border:.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:14px;font-family:inherit;outline:none;background:var(--surface);color:var(--text);margin-bottom:14px">
+      <option value="">全部場次</option>
+    </select>
     <div class="stats-grid" id="export-stats"></div>
     <button class="btn btn-green" onclick="exportExcel()" style="margin-bottom:14px">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -217,6 +223,12 @@ select{-webkit-appearance:none;appearance:none}
         <input type="password" id="notion-token" placeholder="ntn_xxxxxxxxx"
           style="width:100%;border:.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:14px;font-family:monospace;outline:none;background:var(--bg)">
         <div style="font-size:11px;color:var(--text3);margin-top:6px">Token 只存在你的瀏覽器，不會外洩</div>
+      </div>
+      <div style="padding:12px 16px;border-bottom:.5px solid var(--border)">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:6px;font-weight:600">場次篩選</div>
+        <select id="filter-session" onchange="onFilterSessionChange()" style="width:100%;border:.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;font-size:14px;font-family:inherit;outline:none;background:var(--bg);color:var(--text)">
+          <option value="">全部場次</option>
+        </select>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr">
         <button onclick="notionPush()" style="padding:14px;border:none;border-right:.5px solid var(--border);background:var(--accent-bg);color:var(--accent);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">↑ 推送訂單</button>
@@ -432,7 +444,7 @@ function openSessionPicker(){
 function selectSession(id, name){
   S.currentSession = id;
   S.currentSessionName = name;
-  save(); updateSessionBar();
+  save(); updateSessionBar(); updateSessionSelects();
   closeModal('modal-session');
   toast('✓ 已切換到「'+name+'」');
   // 讀取該場次訂單
@@ -540,10 +552,45 @@ function updateBadge(){
   if(el) el.textContent = n>0?'已入 '+n+' 筆':'';
 }
 
+// ══ SESSION FILTER ══
+function getSessionOptions(){
+  var sessions = [];
+  S.orders.forEach(function(o){ if(o.session&&!sessions.includes(o.session)) sessions.push(o.session); });
+  S.sessions.forEach(function(s){ if(s.name&&!sessions.includes(s.name)) sessions.push(s.name); });
+  return sessions;
+}
+
+function updateSessionSelects(){
+  var opts = getSessionOptions();
+  var html = '<option value="">全部場次</option>'+opts.map(function(s){ return '<option value="'+s+'">'+s+'</option>'; }).join('');
+  ['filter-session','orders-session-filter','export-session-filter'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(!el) return;
+    var cur=el.value;
+    el.innerHTML=html;
+    if(cur) el.value=cur;
+  });
+}
+
+function getFilterSession(selectId){
+  var el=document.getElementById(selectId);
+  return el?el.value:'';
+}
+
+function onFilterSessionChange(){
+  var sess=document.getElementById('filter-session').value;
+  // sync current session
+  if(sess){
+    S.currentSession='';
+    S.currentSessionName=sess;
+    updateSessionBar();
+  }
+}
+
 // ══ ORDERS ══
 function renderOrders(){
-  var sess = S.currentSessionName;
-  var orders = sess ? S.orders.filter(function(o){ return o.session===sess; }) : S.orders;
+  var sess=getFilterSession('orders-session-filter')||S.currentSessionName;
+  var orders=sess?S.orders.filter(function(o){ return o.session===sess; }):S.orders;
   var statsEl = document.getElementById('orders-stats');
   var listEl = document.getElementById('orders-list');
   var totalQty = orders.reduce(function(a,o){ return a+(o.qty||0); },0);
@@ -566,8 +613,8 @@ function renderOrders(){
 
 // ══ EXPORT ══
 function renderExport(){
-  var sess = S.currentSessionName;
-  var orders = sess ? S.orders.filter(function(o){ return o.session===sess; }) : S.orders;
+  var sess=getFilterSession('export-session-filter')||S.currentSessionName;
+  var orders=sess?S.orders.filter(function(o){ return o.session===sess; }):S.orders;
   var custs = new Set(orders.map(function(o){ return o.customer; })).size;
   var totalQty = orders.reduce(function(a,o){ return a+(o.qty||0); },0);
   var totalAmt = orders.reduce(function(a,o){ return a+((o.price||0)*(o.qty||0)); },0);
@@ -597,8 +644,8 @@ function renderExport(){
 }
 
 function exportExcel(){
-  var sess = S.currentSessionName;
-  var orders = sess ? S.orders.filter(function(o){ return o.session===sess; }) : S.orders;
+  var sess=getFilterSession('export-session-filter')||S.currentSessionName;
+  var orders=sess?S.orders.filter(function(o){ return o.session===sess; }):S.orders;
   if(!orders.length){ toast('尚無資料'); return; }
   var wb = XLSX.utils.book_new();
   var hs = {font:{bold:true},fill:{fgColor:{rgb:'EEF1FC'}}};
@@ -766,6 +813,7 @@ function notionInit(){
             };
           }).filter(function(o){ return o.product&&o.customer&&!o.deleted; });
           save(); updateBadge(); renderProdList(); renderCustList();
+          updateSessionSelects();
           dbg.textContent+='\n✅ 完成！';
           toast('✓ 初始讀取完成');
         });
@@ -777,7 +825,7 @@ function notionInit(){
 // ── 推送訂單 ──
 function notionPush(){
   var token=getToken(); if(!token) return;
-  var sess=S.currentSessionName;
+  var sess=getFilterSession('filter-session')||S.currentSessionName;
   var orders=sess?S.orders.filter(function(o){ return o.session===sess; }):S.orders;
   if(!orders.length){ toast('沒有訂單可推送'); return; }
   // 補 orderId
@@ -929,6 +977,7 @@ function notionPullCustomers(){
 // ══ INIT ══
 loadToken();
 updateSessionBar();
+updateSessionSelects();
 updateBadge();
 addRow();
 
