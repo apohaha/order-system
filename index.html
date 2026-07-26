@@ -751,7 +751,7 @@ function notionLoadSession(){
         cat:(p['類別']&&p['類別'].rich_text&&p['類別'].rich_text[0]&&p['類別'].rich_text[0].plain_text)||'',
         qty:(p['數量']&&p['數量'].number)||0,
         price:(p['價錢']&&p['價錢'].number)||0,
-        orderNote:(p['整筆備註']&&p['整筆備註'].rich_text&&p['整筆備份'].rich_text[0]&&p['整筆備份'].rich_text[0].plain_text)||'',
+        orderNote:(p['整筆備註']&&p['整筆備註'].rich_text&&p['整筆備註'].rich_text[0]&&p['整筆備註'].rich_text[0].plain_text)||'',
         time:(p['入單時間']&&p['入單時間'].rich_text&&p['入單時間'].rich_text[0]&&p['入單時間'].rich_text[0].plain_text)||'',
         session:(p['場次']&&p['場次'].rich_text&&p['場次'].rich_text[0]&&p['場次'].rich_text[0].plain_text)||'',
         orderId:(p['訂單ID']&&p['訂單ID'].rich_text&&p['訂單ID'].rich_text[0]&&p['訂單ID'].rich_text[0].plain_text)||'',
@@ -811,10 +811,19 @@ function notionInit(){
               orderId:(p['訂單ID']&&p['訂單ID'].rich_text&&p['訂單ID'].rich_text[0]&&p['訂單ID'].rich_text[0].plain_text)||'',
               deleted:(p['已刪除']&&p['已刪除'].checkbox)||false
             };
-          }).filter(function(o){ return o.product&&o.customer&&!o.deleted; });
+          });
+          var raw=r3.length;
+          var noProduct=S.orders.filter(function(o){ return !o.product; }).length;
+          var noCustomer=S.orders.filter(function(o){ return !o.customer; }).length;
+          var isDeleted=S.orders.filter(function(o){ return o.deleted; }).length;
+          S.orders=S.orders.filter(function(o){ return o.product&&o.customer&&!o.deleted; });
           save(); updateBadge(); renderProdList(); renderCustList();
           updateSessionSelects();
-          dbg.textContent+='\n✅ 完成！';
+          dbg.textContent+='\n原始：'+raw+' 筆';
+          dbg.textContent+='\n無商品名：'+noProduct+' 筆';
+          dbg.textContent+='\n無客戶名：'+noCustomer+' 筆';
+          dbg.textContent+='\n已刪除：'+isDeleted+' 筆';
+          dbg.textContent+='\n✅ 載入：'+S.orders.length+' 筆';
           toast('✓ 初始讀取完成');
         });
       });
