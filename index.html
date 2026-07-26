@@ -165,10 +165,15 @@ select{-webkit-appearance:none;appearance:none}
         新增一項商品
       </button>
     </div>
-    <button class="btn btn-primary" onclick="submitOrder()" style="margin-bottom:20px">
+    <button class="btn btn-primary" onclick="submitOrder()" style="margin-bottom:14px">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
       新增訂單
     </button>
+    <!-- recent orders -->
+    <div id="recent-orders" style="display:none">
+      <div class="section-title">剛剛新增</div>
+      <div class="group" id="recent-list"></div>
+    </div>
   </div>
 </div>
 
@@ -484,7 +489,7 @@ function onCustInput(){
   if(!val||val.length<1){ ac.style.display='none'; return; }
   var hits = S.customers.filter(function(c){
     return c.name.toLowerCase().includes(val)||(c.id&&c.id.toLowerCase().includes(val));
-  }).slice(0,8);
+  });
   if(!hits.length){ ac.style.display='none'; return; }
   ac.innerHTML = hits.map(function(c){
     return '<div class="ac-item" onclick="selCust(\''+c.id+'\',\''+c.name.replace(/'/g,"\\'")+'\')">'+(c.id?'<span style="font-size:12px;color:var(--text3);margin-right:6px">'+c.id+'</span>':'')+c.name+'</div>';
@@ -501,6 +506,7 @@ document.addEventListener('click', function(e){
 
 // ══ PRODUCT ROWS ══
 var rowSeq = 0;
+var lastCat = ''; // remember last selected category
 function getCats(){
   var cats = [];
   S.products.forEach(function(p){ if(p.cat&&!cats.includes(p.cat)) cats.push(p.cat); });
@@ -517,10 +523,19 @@ function addRow(){
   var div = document.createElement('div');
   div.className = 'prod-row';
   div.id = 'row-'+id;
+  // default cat to lastCat
+  var catOptions = cats.map(function(c){
+    return '<option value="'+c+'"'+(c===lastCat?' selected':'')+'>'+c+'</option>';
+  }).join('');
+  var prodOptions = '<option value="">選商品</option>';
+  if(lastCat){
+    var prods = getProdsByCat(lastCat);
+    prodOptions = '<option value="">選商品</option>'+prods.map(function(p){ return '<option value="'+p.name+'">'+p.name+'</option>'; }).join('');
+  }
   div.innerHTML =
     '<div class="pr-top">'+
-    '<select class="pr-cat" onchange="onCatChange('+id+')">'+'<option value="">選類別</option>'+cats.map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('')+'</select>'+
-    '<select class="pr-prod"><option value="">選商品</option></select>'+
+    '<select class="pr-cat" onchange="onCatChange('+id+')">'+'<option value="">選類別</option>'+catOptions+'</select>'+
+    '<select class="pr-prod">'+prodOptions+'</select>'+
     '<input type="number" class="pr-qty" min="1" value="1" style="text-align:right">'+
     '</div>'+
     '<input type="text" class="pr-note" placeholder="單項備註（選填）">';
@@ -529,6 +544,7 @@ function addRow(){
 function onCatChange(id){
   var row = document.getElementById('row-'+id);
   var cat = row.querySelector('.pr-cat').value;
+  lastCat = cat; // remember selection
   var prodSel = row.querySelector('.pr-prod');
   var prods = getProdsByCat(cat);
   prodSel.innerHTML = '<option value="">選商品</option>'+prods.map(function(p){ return '<option value="'+p.name+'">'+p.name+'</option>'; }).join('');
@@ -556,7 +572,7 @@ function submitOrder(){
     var prod=row.querySelector('.pr-prod').value;
     var qty=parseInt(row.querySelector('.pr-qty').value)||0;
     var rowNote=row.querySelector('.pr-note').value.trim();
-    if(!cat||!prod){ toast('請選擇類別和商品'); err=true; return; }
+    if(!cat||!prod) return; // skip empty rows silently
     if(qty<1){ toast('數量需≥1'); err=true; return; }
     var p = S.products.find(function(x){ return x.name===prod&&x.cat===cat; })||{};
     items.push({cat:cat,product:prod,qty:qty,price:p.price||0,note:rowNote});
@@ -572,7 +588,7 @@ function submitOrder(){
       session:S.currentSessionName, orderId:orderId
     });
   });
-  save(); updateBadge(); resetForm();
+  save(); updateBadge(); _lastAdded = items; renderRecent(); resetForm();
   toast('✓ '+custObj.name+' — 已新增 '+items.length+' 項');
 }
 
@@ -617,7 +633,19 @@ function onFilterSessionChange(){
   }
 }
 
-// ══ ORDERS ══
+var _lastAdded = []; // store last submitted items
+
+function renderRecent(){
+  var wrap = document.getElementById('recent-orders');
+  var list = document.getElementById('recent-list');
+  if(!_lastAdded||!_lastAdded.length){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  list.innerHTML = _lastAdded.map(function(o){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:.5px solid var(--border);font-size:14px">'+
+      '<div><span style="font-size:12px;color:var(--accent);margin-right:4px">'+o.cat+'</span>'+o.product+(o.note?'<div style="font-size:12px;color:var(--text3)">'+o.note+'</div>':'')+'</div>'+
+      '<span style="font-weight:700;color:var(--red)">×'+o.qty+'</span></div>';
+  }).join('');
+}
 function renderOrders(){
   var sess=getFilterSession('orders-session-filter')||S.currentSessionName;
   var orders=sess?S.orders.filter(function(o){ return o.session===sess; }):S.orders;
