@@ -680,7 +680,7 @@ function exportExcel(){
   if(!orders.length){ toast('尚無資料'); return; }
   var wb = XLSX.utils.book_new();
   var hs = {font:{bold:true},fill:{fgColor:{rgb:'EEF1FC'}}};
-  var d=[['#','客戶名稱','客戶編號','類別','商品名稱','數量','價錢','整筆備註','入單時間','場次']];
+  var d=[['#','客戶名稱','客戶編號','類別','商品名稱','數量','價錢','單項備註','整筆備註','入單時間','場次']];
   orders.forEach(function(o,i){ d.push([i+1,o.customer,o.customerId,o.cat,o.product,o.qty,o.price,o.orderNote,o.time,o.session]); });
   var ws=XLSX.utils.aoa_to_sheet(d);
   ws['!cols']=[{wch:5},{wch:14},{wch:10},{wch:10},{wch:16},{wch:8},{wch:8},{wch:20},{wch:18},{wch:12}];
@@ -807,6 +807,7 @@ function notionLoadSession(){
         cat:(p['類別']&&p['類別'].rich_text&&p['類別'].rich_text[0]&&p['類別'].rich_text[0].plain_text)||'',
         qty:(p['數量']&&p['數量'].number)||0,
         price:(p['價錢']&&p['價錢'].number)||0,
+        note:(p['單項備註']&&p['單項備註'].rich_text&&p['單項備註'].rich_text[0]&&p['單項備註'].rich_text[0].plain_text)||'',
         orderNote:(p['整筆備註']&&p['整筆備註'].rich_text&&p['整筆備註'].rich_text[0]&&p['整筆備註'].rich_text[0].plain_text)||'',
         time:(p['入單時間']&&p['入單時間'].rich_text&&p['入單時間'].rich_text[0]&&p['入單時間'].rich_text[0].plain_text)||'',
         session:(p['場次']&&p['場次'].rich_text&&p['場次'].rich_text[0]&&p['場次'].rich_text[0].plain_text)||'',
@@ -861,6 +862,7 @@ function notionInit(){
               cat:(p['類別']&&p['類別'].rich_text&&p['類別'].rich_text[0]&&p['類別'].rich_text[0].plain_text)||'',
               qty:(p['數量']&&p['數量'].number)||0,
               price:(p['價錢']&&p['價錢'].number)||0,
+              note:(p['單項備註']&&p['單項備註'].rich_text&&p['單項備註'].rich_text[0]&&p['單項備註'].rich_text[0].plain_text)||'',
               orderNote:(p['整筆備註']&&p['整筆備註'].rich_text&&p['整筆備註'].rich_text[0]&&p['整筆備註'].rich_text[0].plain_text)||'',
               time:(p['入單時間']&&p['入單時間'].rich_text&&p['入單時間'].rich_text[0]&&p['入單時間'].rich_text[0].plain_text)||'',
               session:(p['場次']&&p['場次'].rich_text&&p['場次'].rich_text[0]&&p['場次'].rich_text[0].plain_text)||'',
@@ -949,6 +951,7 @@ function notionPush(){
         '類別':{rich_text:[{text:{content:o.cat||''}}]},
         '數量':{number:o.qty||0},
         '價錢':{number:o.price||0},
+        '單項備註':{rich_text:[{text:{content:o.note||''}}]},
         '整筆備註':{rich_text:[{text:{content:o.orderNote||''}}]},
         '場次':{rich_text:[{text:{content:o.session||''}}]},
         '入單時間':{rich_text:[{text:{content:o.time||''}}]},
