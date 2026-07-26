@@ -660,7 +660,14 @@ function renderOrders(){
     if(!byC[o.customer]) byC[o.customer]={id:o.customerId,items:[]};
     byC[o.customer].items.push(o);
   });
-  listEl.innerHTML = Object.keys(byC).map(function(name){
+  var sortedNames = Object.keys(byC).sort(function(a,b){
+    var ia=parseInt(byC[a].id||''), ib=parseInt(byC[b].id||'');
+    var aNum=!isNaN(ia)&&byC[a].id!=='', bNum=!isNaN(ib)&&byC[b].id!=='';
+    if(aNum&&bNum) return ia-ib;
+    if(aNum) return -1; if(bNum) return 1;
+    return a.localeCompare(b,'zh-TW');
+  });
+  listEl.innerHTML = sortedNames.map(function(name){
     var g=byC[name];
     return '<div class="order-card"><div class="order-card-head"><div>'+(g.id?'<span class="oc-id">'+g.id+'</span>':'')+' <span class="oc-name">'+name+'</span></div></div>'+
       g.items.map(function(o){
@@ -693,9 +700,15 @@ function renderExport(){
   });
   var sumEl = document.getElementById('export-summary');
   if(!Object.keys(catMap).length){ sumEl.innerHTML='<div class="empty" style="padding:20px"><p>尚無資料</p></div>'; return; }
-  sumEl.innerHTML = Object.keys(catMap).map(function(cat){
+  // sort categories alphabetically
+  var sortedCats = Object.keys(catMap).sort(function(a,b){ return a.localeCompare(b,'zh-TW'); });
+  sumEl.innerHTML = sortedCats.map(function(cat){
     var prods = catMap[cat];
-    return '<div class="sum-cat">'+cat+'</div>'+Object.values(prods).map(function(p){
+    // sort products: numbers first, then alphabetically
+    var sortedProds = Object.values(prods).sort(function(a,b){
+      return a.product.localeCompare(b.product,'zh-TW',{numeric:true});
+    });
+    return '<div class="sum-cat">'+cat+'</div>'+sortedProds.map(function(p){
       var total=p.buyers.reduce(function(a,b){ return a+b.qty; },0);
       return '<div class="sum-prod"><div><div class="sp-name">'+p.product+'</div><div class="sp-buyers">'+p.buyers.map(function(b){ return b.customer+' ×'+b.qty; }).join('　')+'</div></div><div class="sp-qty">共 '+total+'</div></div>';
     }).join('');
