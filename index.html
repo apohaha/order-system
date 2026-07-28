@@ -772,13 +772,18 @@ function saveEditOrder(){
   if(qty<1){ toast('數量需≥1'); return; }
   S.orders[_editIdx].qty = qty;
   S.orders[_editIdx].note = document.getElementById('edit-note').value.trim();
-  save(); closeModal('modal-edit-order'); renderOrders(); toast('✓ 已儲存');
+  S.orders[_editIdx]._dirty = true; // force push update
+  save(); closeModal('modal-edit-order'); renderOrders(); toast('✓ 已儲存，請記得推送訂單');
 }
 function deleteEditOrder(){
   if(_editIdx<0) return;
   showConfirm('確定刪除這筆訂單？', function(){
+    var before=S.orders.length;
     S.orders.splice(_editIdx,1);
-    save(); closeModal('modal-edit-order'); renderOrders(); updateBadge(); toast('✓ 已刪除');
+    save();
+    var after=S.orders.length;
+    closeModal('modal-edit-order'); renderOrders(); updateBadge();
+    toast('已刪除，本機剩 '+after+' 筆（原 '+before+' 筆）');
   });
 }
 function notionRequest(method, path, body, cb){
@@ -944,6 +949,7 @@ function notionPush(){
   if(needSave) save();
   var dbg=document.getElementById('notion-debug');
   dbg.textContent='🔄 讀取 Notion 現有訂單…';
+  dbg.textContent+='\n本機訂單：'+orders.length+' 筆（場次：'+(sess||'全部')+'）';
   var filter=sess?{property:'場次',rich_text:{equals:sess}}:null;
   notionQueryAll(DB.orders,filter,function(existing){
     dbg.textContent+='\nNotion 現有：'+existing.length+' 筆';
@@ -971,6 +977,7 @@ function notionPush(){
       if(!queue.length){
         // 標記刪除
         var toDelete=Object.keys(notionMap).filter(function(oid){ return !localIds.has(oid)&&!notionMap[oid].deleted; });
+        dbg.textContent+='\n待刪除：'+toDelete.length+' 筆';
         var dq=toDelete.slice();
         function deleteNext(){
           if(!dq.length){
@@ -1002,8 +1009,13 @@ function notionPush(){
         '已刪除':{checkbox:false}
       };
       if(notionMap[o.orderId]){
-        if(notionMap[o.orderId].sig===localSig&&!notionMap[o.orderId].deleted){ skipped++; processNext(); return; }
-        notionRequest('PATCH','/v1/pages/'+notionMap[o.orderId].pageId,{properties:props},function(r){ if(r) updated++; else fail++; processNext(); });
+        var nSig=notionMap[o.orderId].sig;
+        if(nSig===localSig&&!notionMap[o.orderId].deleted&&!o._dirty){ 
+          skipped++; processNext(); return; 
+        }
+        o._dirty = false;
+        dbg.textContent+='\n更新：'+o.customer+' '+o.product+' (本機qty='+o.qty+' Nsig='+nSig.substr(0,30)+' Lsig='+localSig.substr(0,30)+')';
+        notionRequest('PATCH','/v1/pages/'+notionMap[o.orderId].pageId,{properties:props},function(r){ if(r&&!r.message) updated++; else fail++; processNext(); });
       } else {
         notionRequest('POST','/v1/pages',{parent:{database_id:DB.orders},properties:props},function(r){ if(r&&r.id) added++; else fail++; processNext(); });
       }
